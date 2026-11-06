@@ -1,0 +1,22 @@
+# Personal match data (never commit)
+apex_data/
+apex_stats_*.txt
+*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Local tool settings
+.claude/settings.local.json
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
