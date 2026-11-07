@@ -72,13 +72,11 @@ def undo(d):
     Each record is reverted on its own terms: a Change puts back the value it replaced; an entry
     takes its kills/wins back out of the account totals, unless a Change already restored them.
     The month file is written first, then account_stats.txt. Returns the text to print, which ends
-    with the entry that is now the latest one."""
+    with the PREVIOUS LOG: the action that is now the most recent (the next undo would revert it)."""
     cur, path, m = load_current(d)
-    top = max([e.id for e in m.logs] + [c.id for c in m.changes], default=None)
-    if top is None:
+    entry, change = m.last_action()
+    if not (entry or change):
         raise ValueError("Nothing to undo.")
-    entry = next((e for e in m.logs if e.id == top), None)
-    change = next((c for c in m.changes if c.id == top), None)
     if entry:
         m.logs.remove(entry)
     if change:
@@ -94,7 +92,7 @@ def undo(d):
     if change and not change.is_account:  # the legend's logged kills/wins, shown with its restored base
         t = legend_totals(m.hl, m.logs).get(change.target, zero())
         logged = (t[1], t[2])
-    return fmt_undo(note, m.latest(), entry, change, logged)
+    return fmt_undo(note, m.last_action(), entry, change, logged)
 
 
 def save_level(d, token, when=None):

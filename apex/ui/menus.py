@@ -11,7 +11,7 @@ QUICK_GUIDE = (
     " [ MATCH ]   <kills> <wins> [legend] | <kills> <legend> (1 win; e.g. 5 wraith)\n"
     " [ QUICK ]   <n>k | <n>w [legend] (n kills | n wins; e.g. 5k | 1w wraith)\n"
     " [ LEVEL ]   <n> | <n>l (e.g. 500 or 5l)\n"
-    " [ REPORT ]  report | m | l | lv | k | w | log | logl\n"
+    " [ REPORT ]  report | m | l (lw, la, lm, ls <name>) | lv | k | w | log | logl\n"
     " [ TOOLS ]   undo | date YYYY-MM-DD | date today | c (help)\n"
     ' [ LEGEND ]  p: sticky ON/OFF (ON pins the legend you type; "-" unpins + OFF)\n'
     "-------------------------------------------------------------------------------\n"
@@ -24,7 +24,7 @@ def quick_guide():
     """QUICK_GUIDE for the terminal: kill words, the k command and <n>k red; win words, w and <n>w green;
     orange only for the lv command and the [ LEVEL ] inputs and examples (the tag stays plain)."""
     return color_quick(paint(QUICK_GUIDE).replace(
-        "| l | lv | k | w |", f"| l | {orange('lv')} | {red('k')} | {green('w')} |").replace(
+        "| lv | k | w |", f"| {orange('lv')} | {red('k')} | {green('w')} |").replace(
         "<n> | <n>l (e.g. 500 or 5l)\n",
         f"{orange('<n>')} | {orange('<n>l')} (e.g. {orange('500')} or {orange('5l')})\n"))
 
@@ -39,7 +39,7 @@ def cheat_text(cli):
                    ("account <kills> <wins>", "later: log the gain (new - saved), kills and wins only"),
                    ("account", "show the saved global account totals"))),
         ("BASE", (("base <legend> <kills> <wins>", "1st time: set a legend's all-time totals (e.g. base wraith 3000 120)"),
-                  ("base <legend> <kills> <wins>", "later: log the gain (new - current) as a match for it"),
+                  ("base <legend> <kills> <wins>", "later: log the gain (new - current) for that legend"),
                   ("base", "list the legends with a base and their all-time totals"))),
         ("MATCH", ((f"{a}<kills> <wins> [legend]", "save a match (e.g. 5 1 wraith | 5 1)"),
                    (f"{a}<kills> <legend>", "save a match with 1 win (e.g. 5 wraith = 5 kills, 1 win)"))),
@@ -50,11 +50,15 @@ def cheat_text(cli):
         ("REPORT", (("report", "account totals + match summaries + level report"),
                     ("m", "kills and wins this month + top 5 all-time matches by kills"),
                     ("l", "base legends' all-time K/W + last match + top 3 by kills this month"),
+                    ("lw", "same as l, base legends sorted by all-time wins"),
+                    ("la", "same as l, base legends sorted by name"),
+                    ("lm", "same as l, base legends sorted by last match (most recent first)"),
+                    ("ls <name>", "same as l, only the base legends whose name contains <name>"),
                     ("lv", "levels gained (1 week ... 1 year)"),
                     ("k", "account kills + kills per legend (+ grand total)"),
                     ("w", "account wins + wins per legend (+ grand total)"),
-                    ("log", "this month's matches (account and base updates excluded)"),
-                    ("logl", "level history (this month + earlier days)"))),
+                    ("log", "matches only: this month's (account/base gains and levels excluded)"),
+                    ("logl", "levels only: level history (this month + earlier days)"))),
         ("TOOLS", (("undo", "remove the last entry, base or account change (repeatable)"),
                    (('--date "YYYY-MM-DD[ HH:MM]"', "date for add, account, base and quick entries") if cli else
                     ("date YYYY-MM-DD", "use this date for the next entries")),

@@ -1,4 +1,5 @@
-"""Read-only views: report, l, k, w, m, lv, log, logl (each reads the current file once)."""
+"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, lv, log, logl (each reads the current
+file once)."""
 from datetime import date, timedelta
 
 from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_MATCHES
@@ -12,6 +13,10 @@ from apex.storage.monthly_file import load_current
 TOP_N = 3
 TOP_HEAD = f"{'#':<2} | {'LEGEND':<{LEG_W}} | {'KILLS':>8}"
 LAST_HEAD = LREP_HEAD + f" | {'LAST MATCH':<16}"
+# 'l' left-column orders: (key(row, last), highest first?). k = all-time kills, w = all-time wins,
+# a = by name, m = last match (most recent first; never played = "" = at the bottom). Ties keep name order.
+L_SORTS = {"k": (lambda x, last: x[1][3][1], True), "w": (lambda x, last: x[1][3][2], True),
+           "a": (lambda x, last: x[0].lower(), False), "m": (lambda x, last: last.get(x[0], ""), True)}
 
 
 def top_legends(logs, n=TOP_N):
@@ -22,21 +27,24 @@ def top_legends(logs, n=TOP_N):
     return rows[:n]
 
 
-def legend_report(month, logs, hl, pl, bases, ll=None):
+def legend_report(month, logs, hl, pl, bases, ll=None, sort="k", search=None):
     """'l': two tables side by side. Left: every legend set with 'base' and its all-time totals
-    (base + logged entries), kills and wins only, sorted by all-time kills (highest first), no
-    grand total, with the date and time of its last logged match (ll = carried @LL values; '-' = none yet).
-    Right: the TOP_N legends by
-    kills logged in the current month."""
+    (base + logged entries), kills and wins only, no grand total, with the date and time of its
+    last logged match (ll = carried @LL values; '-' = none yet). sort = a key of L_SORTS (ties keep
+    name order); search = only the legends whose name contains it (any case).
+    Right: the TOP_N legends by kills logged in the current month (never filtered)."""
     dash = "-" * len(LAST_HEAD)
     left = ["# ALL-TIME BY LEGEND  (base + logged)", paint(LAST_HEAD), dash]
     rows = [(leg, ps) for leg, ps in legend_periods(month, logs, hl, pl, bases) if leg in bases]
-    rows.sort(key=lambda x: -x[1][3][1])  # all-time kills, highest first (ties keep name order)
+    if search:
+        rows = [x for x in rows if search.lower() in x[0].lower()]
     last = last_logged(ll or {}, logs)
+    key, desc = L_SORTS[sort]
+    rows.sort(key=lambda x: key(x, last), reverse=desc)  # stable, also when reversed
     for leg, ps in rows:
         left.append(f"{leg:<{LEG_W}} | " + rep_cells(ps[3]) + f" | {last.get(leg, '-')}")
     if not rows:
-        left.append("(no base legends yet)")
+        left.append(f"(no base legend matches '{search[:LEG_W]}')" if search and bases else "(no base legends yet)")
     left.append("=" * len(LAST_HEAD))
     tdash = "-" * len(TOP_HEAD)
     right = [f"# TOP {TOP_N} THIS MONTH  ({month})", paint(TOP_HEAD), tdash]
@@ -110,9 +118,12 @@ def report_text(d):
             summary(cur, m.hist, m.prev, m.logs) + "\n" + lv_report(m.logs, m.lv))
 
 
-def legend_text(d):
+def legend_text(d, sort="k", search=None):
+    """'l' (by kills), 'lw' (by wins), 'la' (by name), 'lm' (by last match); 'ls <name>' = search
+    (by kills). sort = a key of L_SORTS."""
     cur, path, m = load_current(d)
-    return f"File: {path}\n\n" + legend_report(cur, m.logs, m.hl, m.pl, load_acct(d)[1], m.ll)
+    return (f"File: {path}\n\n" +
+            legend_report(cur, m.logs, m.hl, m.pl, load_acct(d)[1], m.ll, sort, search))
 
 
 def kills_text(d):
@@ -202,4 +213,5 @@ def logl_text(d):
 
 
 VIEWS = {"report": report_text, "l": legend_text, "k": kills_text, "w": wins_text,
-         "m": m_text, "lv": lv_text, "log": log_text, "logl": logl_text}
+         "m": m_text, "lv": lv_text, "log": log_text, "logl": logl_text,
+         "lw": lambda d: legend_text(d, "w"), "la": lambda d: legend_text(d, "a"), "lm": lambda d: legend_text(d, "m")}

@@ -13,7 +13,7 @@ from apex.services.account import account_cmd
 from apex.services.bases import base_cmd
 from apex.services.entries import save_log, save_quick, undo
 from apex.ui.menus import cheat_text, quick_guide
-from apex.ui.reports import VIEWS
+from apex.ui.reports import VIEWS, legend_text
 
 
 class Sticky:
@@ -70,6 +70,10 @@ class Session:
         parts = line.split()
         cmd = ALIASES.get(line.lower(), line.lower())
         head = parts[0].lower()
+        if head == "ls":  # ls <name>: search the base legends
+            if len(parts) < 2:
+                raise InputError()
+            return legend_text(self.d, search=" ".join(parts[1:]))
         if cmd in VIEWS:
             return VIEWS[cmd](self.d)
         if cmd == "undo":

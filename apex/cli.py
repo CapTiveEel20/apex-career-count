@@ -12,7 +12,7 @@ from apex.services.account import account_cmd
 from apex.services.bases import base_cmd
 from apex.services.entries import save_log, save_quick, undo
 from apex.ui.menus import cheat_text
-from apex.ui.reports import VIEWS
+from apex.ui.reports import VIEWS, legend_text
 from apex.ui.repl import interactive
 
 USAGE_ADD = ('python apex_stats.py add <kills> <wins> [legend] | <kills> <legend> [--l NAME] '
@@ -21,7 +21,9 @@ USAGE_ADD = ('python apex_stats.py add <kills> <wins> [legend] | <kills> <legend
 USAGE_NUM = ('python apex_stats.py <n> | <n>l | +<n> | <n>k [legend] | <n>w [legend] [--date "YYYY-MM-DD[ HH:MM]"]'
              "   # <n> = absolute level, <n>l (or +<n>) = n more levels, <n>k / <n>w = n kills / n wins only")
 USAGE_REPORT = "python apex_stats.py report   # match summaries, followed by the level report (same as lv)"
-USAGE_L = "python apex_stats.py l   # base legends' all-time kills and wins, next to the top 3 legends by kills this month"
+USAGE_L = ("python apex_stats.py l | lw | la | lm | ls <name>   # base legends' all-time kills and wins by kills "
+           "(l), wins (lw), name (la) or last match (lm), or searched by name (ls), next to the top 3 legends by "
+           "kills this month")
 USAGE_K = "python apex_stats.py k   # kills per legend: month, semiannual, annual, all-time + GRAND TOTAL"
 USAGE_W = "python apex_stats.py w   # wins per legend: month, semiannual, annual, all-time + GRAND TOTAL"
 USAGE_M = "python apex_stats.py m   # kills and wins of the current file + top 5 all-time highest-kill matches"
@@ -37,7 +39,7 @@ USAGE_BASE = ('python apex_stats.py base [<legend> <kills> <wins>] [--date "YYYY
 USAGE_DIR = "python apex_stats.py --dir <path> ...   # data folder; default is ./apex_data next to the script"
 USAGE_REPL = ("python apex_stats.py   # interactive mode: '<kills> <wins> [legend]', '<kills> <legend>', "
               "'<n>', '<n>l', "
-              "'<n>k', '<n>w' per line, account/base, report/m/l/lv/k/w/log/logl/undo/c, "
+              "'<n>k', '<n>w' per line, account/base, report/m/l/lw/la/lm/ls/lv/k/w/log/logl/undo/c, "
               "'date YYYY-MM-DD' / 'date today', sticky legend, empty line to quit")
 USAGE_C = "python apex_stats.py c   # quick-start cheat sheet: all inputs and commands"
 USAGE = "\n  " + "\n  ".join((USAGE_ADD, USAGE_NUM, USAGE_REPORT, USAGE_M, USAGE_L, USAGE_LV, USAGE_K, USAGE_W,
@@ -97,6 +99,13 @@ def cmd_view(a):
         sys.exit(paint(str(e)))
 
 
+def cmd_ls(a):
+    try:
+        print(legend_text(a.dir, search=" ".join(a.name)), end="")
+    except ValueError as e:
+        sys.exit(paint(str(e)))
+
+
 def cmd_account(a):
     try:
         text = account_cmd(a.dir, a.values, a.date)
@@ -142,7 +151,7 @@ def main():
     ap.add_argument("--dir", metavar="<path>", default=DEFAULT_DIR,
                     help="data folder (default: ./apex_data next to the script)")
     sp = ap.add_subparsers(dest="cmd", required=True,
-                           metavar="{add,report,m,l,lv,k,w,log,logl,undo,account,base,c}")
+                           metavar="{add,report,m,l,lw,la,lm,ls,lv,k,w,log,logl,undo,account,base,c}")
     p = sp.add_parser("add", prog="apex_stats.py add", usage="\n  " + USAGE_ADD,
                       help="record a match (kills, wins, legend)")
     p.add_argument("values", nargs="+", metavar="<kills> <wins> [legend] | <kills> <legend>",
@@ -153,7 +162,10 @@ def main():
     p.set_defaults(fn=cmd_add)
     for name, usage, hlp in (("report", USAGE_REPORT, "match summaries + level report"),
                              ("m", USAGE_M, "kills and wins of the current file + top 5 matches"),
-                             ("l", USAGE_L, "base legends (all-time) + top 3 by kills this month"),
+                             ("l", USAGE_L, "base legends (all-time) by kills + top 3 by kills this month"),
+                             ("lw", USAGE_L, "same as l, sorted by wins"),
+                             ("la", USAGE_L, "same as l, sorted by name"),
+                             ("lm", USAGE_L, "same as l, sorted by last match (most recent first)"),
                              ("lv", USAGE_LV, "levels gained (report only)"),
                              ("k", USAGE_K, "kills per legend (month, semiannual, annual, all-time)"),
                              ("w", USAGE_W, "wins per legend (month, semiannual, annual, all-time)"),
@@ -161,6 +173,10 @@ def main():
                              ("logl", USAGE_LOGL, "level history (this month + earlier days)")):
         sp.add_parser(name, prog=f"apex_stats.py {name}", usage="\n  " + usage,
                       help=hlp).set_defaults(fn=cmd_view)
+    p = sp.add_parser("ls", prog="apex_stats.py ls", usage="\n  " + USAGE_L,
+                      help="same as l, only the base legends whose name contains <name>")
+    p.add_argument("name", nargs="+", metavar="<name>", help="part of the legend name (any case)")
+    p.set_defaults(fn=cmd_ls)
     sp.add_parser("undo", prog="apex_stats.py undo", usage="\n  " + USAGE_UNDO,
                   help="remove the most recent entry, base or account change").set_defaults(fn=cmd_undo)
     p = sp.add_parser("account", prog="apex_stats.py account", usage="\n  " + USAGE_ACCOUNT,

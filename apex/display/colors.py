@@ -1,4 +1,5 @@
-"""Raw ANSI colors (no external libraries): kills red, wins green, levels orange.
+"""Raw ANSI colors (no external libraries): kills red, wins green, levels orange; record-type labels
+(undo's PREVIOUS LOG) cyan / magenta / blue.
 
 COLOR is module state set once by setup(). Read it only inside this module (red, green, orange,
 paint, color_quick); never copy it with `from apex.display.colors import COLOR`.
@@ -8,6 +9,7 @@ import re
 import sys
 
 RED, GREEN, ORANGE, RESET = "\033[91m", "\033[92m", "\033[38;5;208m", "\033[0m"
+CYAN, MAGENTA, BLUE = "\033[1;96m", "\033[1;95m", "\033[1;94m"  # bold: labels only
 COLOR = False
 KW_RE = re.compile(r"[<\[]?\b(?:(kills?)|(wins?))\b[>\]]?(?:\s+\d(?:[\d,]*\d)?)?", re.IGNORECASE)
 LAST_LEVEL_RE = re.compile(r"(?<=last recorded level \()\d[\d,]*(?=\))")  # (Y) of the check_level error
@@ -54,6 +56,18 @@ def green(s, color=None):
 
 def orange(s, color=None):
     return f"{ORANGE}{s}{RESET}" if _on(color) else str(s)
+
+
+def cyan(s, color=None):
+    return f"{CYAN}{s}{RESET}" if _on(color) else str(s)
+
+
+def magenta(s, color=None):
+    return f"{MAGENTA}{s}{RESET}" if _on(color) else str(s)
+
+
+def blue(s, color=None):
+    return f"{BLUE}{s}{RESET}" if _on(color) else str(s)
 
 
 def paint(text, color=None):

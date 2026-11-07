@@ -59,6 +59,9 @@ class Month(NamedTuple):
         """Undo-stack ID for a new record: one above every log entry and change of the file."""
         return max([e.id for e in self.logs] + [c.id for c in self.changes], default=0) + 1
 
-    def latest(self):
-        """The most recently added log entry (highest ID), or None."""
-        return max(self.logs, key=lambda e: e.id, default=None)
+    def last_action(self):
+        """(Entry, Change) of the most recent action, the records with the highest ID (what undo
+        reverts next): one of them, both (an account gain and its snapshot), or (None, None)."""
+        top = max([e.id for e in self.logs] + [c.id for c in self.changes], default=None)
+        return (next((e for e in self.logs if e.id == top), None),
+                next((c for c in self.changes if c.id == top), None))

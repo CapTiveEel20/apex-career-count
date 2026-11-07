@@ -1,5 +1,6 @@
 """Short terminal messages: the account-totals line, the SAVED confirmation and the undo report."""
-from apex.display.colors import orange, paint
+from apex.config import SRC_ACCOUNT, SRC_BASE
+from apex.display.colors import blue, cyan, green, magenta, orange, paint, red
 
 
 def level_txt(level):
@@ -38,8 +39,36 @@ def entry_line(e):
     return f"{e.date} | {e.legend} | " + paint(f"WINS {e.wins:,} | KILLS {e.kills:,}") + " | " + orange(f"LEVEL {e.level:,}")
 
 
-def fmt_undo(note, latest, entry=None, change=None, logged=None):
-    """What undo reverted ('Undone: ...', with the file note), then the entry that is now the latest.
+def kw_values(kills, wins, sign=""):
+    """'KILLS <k> | WINS <w>': the whole 'KILLS <k>' red, the whole 'WINS <w>' green (sign = "+" for gains)."""
+    return red(f"KILLS {sign}{kills:,}") + " | " + green(f"WINS {sign}{wins:,}")
+
+
+def fmt_previous(entry, change):
+    """The most recent remaining action, labeled by type: [MATCH] (cyan), [ACCOUNT UPDATE] (magenta),
+    [BASE UPDATE] (blue) or [LEVEL UPDATE] (orange). entry / change = Month.last_action()."""
+    if entry is None and change is None:
+        return "none (nothing left to undo in this file)"
+    if entry and entry.src == SRC_ACCOUNT:  # account gain (its snapshot shares the ID)
+        return magenta("[ACCOUNT UPDATE]") + f" {entry.date} | " + kw_values(entry.kills, entry.wins, "+")
+    if entry and entry.src == SRC_BASE:  # base gain, logged for its legend
+        return blue("[BASE UPDATE]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins, "+")
+    if entry and entry.level_only:
+        return orange("[LEVEL UPDATE]") + f" {entry.date} | " + orange(f"LEVEL {entry.level:,}")
+    if entry:
+        return cyan("[MATCH]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins)
+    old = change.old
+    was = kw_values(old[0], old[1]) if old else None
+    if change.is_account:  # a change alone = the first account save (no totals before)
+        return magenta("[ACCOUNT UPDATE]") + f" {change.date} | " + (
+            f"totals changed (before: {was})" if was else "first save of the account totals")
+    return blue("[BASE UPDATE]") + f" {change.date} | Legend: {change.target} | " + (
+        f"base set, corrected or removed (stored base before: {was})" if was else "base set (none before)")
+
+
+def fmt_undo(note, previous, entry=None, change=None, logged=None):
+    """What undo reverted ('Undone: ...', with the file note), then the PREVIOUS LOG: the action that
+    is now the most recent (previous = Month.last_action(), labeled by fmt_previous).
     entry / change = the records removed (an account gain removes both); logged = the (kills, wins)
     still logged for the legend of a reverted base change, shown on top of the restored base."""
     old = change.old if change else None
@@ -53,5 +82,4 @@ def fmt_undo(note, latest, entry=None, change=None, logged=None):
         what = ("restored to " + paint(f"KILLS {old[0] + logged[0]:,} | WINS {old[1] + logged[1]:,}") + " (all-time)"
                 if old else "removed (no base before)")
         head = f"{change.date} | BASE {change.target} {what}  ({note})"
-    now = entry_line(latest) if latest else "none (no entries left in this file)"
-    return f"Undone: {head}\nLatest entry now: {now}\n"
+    return f"Undone: {head}\nPREVIOUS LOG: {fmt_previous(*previous)}\n"
