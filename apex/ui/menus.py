@@ -9,7 +9,7 @@ QUICK_GUIDE = (
     " [ SETUP ]   account <kills> <wins> (1st: saves totals; later: logs new - old)\n"
     " [ BASE ]    base <legend> <kills> <wins> (1st: sets total; later: logs gain)\n"
     " [ MATCH ]   <kills> <wins> [legend] | <kills> <legend> (1 win; e.g. 5 wraith)\n"
-    " [ QUICK ]   <n>k | <n>w (n kills | n wins; pinned legend if any; e.g. 5k | 1w)\n"
+    " [ QUICK ]   <n>k | <n>w [legend] (n kills | n wins; e.g. 5k | 1w wraith)\n"
     " [ LEVEL ]   <n> | <n>l (e.g. 500 or 5l)\n"
     " [ REPORT ]  report | m | l | lv | k | w | log | logl\n"
     " [ TOOLS ]   undo | date YYYY-MM-DD | date today | c (help)\n"
@@ -43,15 +43,13 @@ def cheat_text(cli):
                   ("base", "list the legends with a base and their all-time totals"))),
         ("MATCH", ((f"{a}<kills> <wins> [legend]", "save a match (e.g. 5 1 wraith | 5 1)"),
                    (f"{a}<kills> <legend>", "save a match with 1 win (e.g. 5 wraith = 5 kills, 1 win)"))),
-        ("QUICK", ((f"{lvl}<n>k", "n kills only: 0 wins, no legend (e.g. 5k)" if cli else
-                    "n kills only: 0 wins, pinned legend if any (e.g. 5k)"),
-                   (f"{lvl}<n>w", "n wins only: 0 kills, no legend (e.g. 1w)" if cli else
-                    "n wins only: 0 kills, pinned legend if any (e.g. 1w)"))),
+        ("QUICK", ((f"{lvl}<n>k", "n kills only, 0 wins; optional legend after it (e.g. 5k | 5k wraith)"),
+                   (f"{lvl}<n>w", "n wins only, 0 kills; optional legend after it (e.g. 1w | 1w wraith)"))),
         ("LEVEL", ((f"{lvl}<n>", "set your absolute level (e.g. 700)"),
                    (f"{lvl}<n>l", "add n to the current level (e.g. 3l; +3 works too)"))),
         ("REPORT", (("report", "account totals + match summaries + level report"),
-                    ("m", "kills and wins this month"),
-                    ("l", "base legends' all-time kills and wins + top 3 by kills this month"),
+                    ("m", "kills and wins this month + top 5 all-time matches by kills"),
+                    ("l", "base legends' all-time K/W + last match + top 3 by kills this month"),
                     ("lv", "levels gained (1 week ... 1 year)"),
                     ("k", "account kills + kills per legend (+ grand total)"),
                     ("w", "account wins + wins per legend (+ grand total)"),
@@ -87,8 +85,9 @@ def cheat_text(cli):
             "               undo also reverts a base you set, corrected or removed.",
             "             - Level <n> = absolute (never lower than the last one); <n>l adds n to it.",
             "               SAVED lines of matches show your current account level.",
-            "             - <n>k and <n>w never use a legend." if cli else
-            "             - <n>k and <n>w use the pinned legend, if any (no legend otherwise).",
+            "             - <n>k and <n>w take the legend typed after them (none if omitted)." if cli else
+            "             - <n>k and <n>w take the legend typed after them, else the pinned one, if any.",
+            "             - m ranks every match by kills: the top 5 are kept across months.",
             "             - Entries cannot be dated in a month older than the newest data file.",
             "             - Numbers are shown with thousands separators (15,000); kills/wins may be typed so."]
     if not cli:

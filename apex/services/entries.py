@@ -5,13 +5,11 @@ from apex.config import ACC_TAG, DFMT, LEG_W, SRC_ACCOUNT, SRC_LEVEL, SRC_MATCH
 from apex.core.aggregates import legend_totals, zero
 from apex.core.levels import check_level, last_level, latest_level
 from apex.core.parsing import LEVEL_RE, QUICK_RE, clean, parse_when
-from apex.display.colors import orange, paint
-from apex.display.messages import logs_word
+from apex.core.records import Change, Entry
+from apex.display.messages import fmt_undo, logs_word
 from apex.display.tables import summary
-from apex.storage.account_file import bump_account, load_account, restore_account, restore_base, save_account
-from apex.storage.atomic import write_atomic
-from apex.storage.monthly_file import (current_month, current_path, load, month_path, next_id,
-                                       read_month, render, roll_over)
+from apex.storage.account_file import bump_account, load_account, put_base, restore_account, save_account
+from apex.storage.monthly_file import current_month, load, load_current, month_path, open_month, write_month
 
 
 def save_log(d, kills, wins, legend=None, when=None, level=0, delta=None, account=None, source=SRC_MATCH):
@@ -21,38 +19,31 @@ def save_log(d, kills, wins, legend=None, when=None, level=0, delta=None, accoun
     (save_level) pass a level: matches never carry one.
     account = account totals already loaded by the caller (account_cmd), so they are not read twice.
     source = SRC code of the entry (match, account update, base update, level update).
-    Returns (path, summary, current account level after the save, record)."""
+    Returns (path, summary, current account level after the save, Entry)."""
     if kills < 0 or wins < 0 or level < 0:
         raise ValueError("Error: kills, wins and level cannot be negative.")
     if delta is not None and delta < 1:
         raise ValueError("Error: a +<n> level increment must be 1 or higher.")
     dt = parse_when(when)
     stamp = dt.strftime(DFMT)
-
-    cur, month, state = read_month(d, dt.strftime("%Y-%m"))
-    _, _, logs, _, _, lv, _ = state
+    month, m = open_month(d, dt)  # a new month starts with the old totals and levels carried over
     if delta is not None:
-        base = last_level(stamp, logs, lv)
+        base = last_level(stamp, m.logs, m.lv)
         if not base:
             raise ValueError("Error: no level recorded yet; enter an absolute level first (e.g. 700).")
         level = base + delta
-    check_level(level, stamp, logs, lv)
-
-    if cur and month > cur:  # new month -> new file, totals carried into the header
-        state = roll_over(cur, month, dt.date(), state)
-    hist, prev, logs, hl, pl, lv, bu = state
+    check_level(level, stamp, m.logs, m.lv)
 
     acc = (account or load_account(d)) if (kills or wins) else None  # totals to bump (None = unset / nothing to add)
-    rec = (stamp, clean(legend, LEG_W), kills, wins, level, next_id(logs, bu), 1 if acc else 0, source)
-    logs.append(rec)
-    logs.sort(key=lambda r: (r[0], r[5]))
+    rec = Entry(stamp, clean(legend, LEG_W), kills, wins, level, m.next_id(), 1 if acc else 0, source)
+    m.logs.append(rec)
+    m.logs.sort(key=lambda e: (e.date, e.id))
     if source == SRC_ACCOUNT and acc:  # snapshot of the totals before the gain, same ID: undo restores it exactly
-        bu.append((rec[5], stamp, ACC_TAG, tuple(acc)))
-    path = month_path(d, month)
-    write_atomic(path, render(month, hist, prev, logs, hl, pl, lv, bu))
+        m.changes.append(Change(rec.id, stamp, ACC_TAG, tuple(acc)))
+    path = write_month(d, month, m)
     if acc:  # keep the global account totals in step with the logs (after the monthly file)
         save_account(d, acc[0] + kills, acc[1] + wins)
-    return path, summary(month, hist, prev, logs), latest_level(logs, lv), rec
+    return path, summary(month, m.hist, m.prev, m.logs), latest_level(m.logs, m.lv), rec
 
 
 def current_level(d):
@@ -60,73 +51,50 @@ def current_level(d):
     cur = current_month(d)
     if not cur:
         return 0
-    _, _, logs, _, _, lv, _ = load(month_path(d, cur))
-    return latest_level(logs, lv)
+    m = load(month_path(d, cur))
+    return latest_level(m.logs, m.lv)
 
 
-def _rewrite(d, cur, path, state):
+def _rewrite(d, cur, path, m):
     """Write the month file back after an undo, or delete it once it holds nothing, so the
     previous month (left untouched at rollover) becomes current again. Returns the note."""
-    hist, prev, logs, hl, pl, lv, bu = state
-    if logs or bu:
-        write_atomic(path, render(cur, hist, prev, logs, hl, pl, lv, bu))
-        return f"{logs_word(len(logs))} left in {cur}"
+    if m.logs or m.changes:
+        write_month(d, cur, m)
+        return f"{logs_word(len(m.logs))} left in {cur}"
     os.remove(path)
     return f"{cur} is now empty, file removed; current month: {current_month(d) or 'none'}"
 
 
-def _entry_line(r):
-    """One log entry as shown by undo: date | legend | wins | kills | level."""
-    return (f"{r[0]} | {r[1]} | " + paint(f"WINS {r[3]:,} | KILLS {r[2]:,}") +
-            " | " + orange(f"LEVEL {r[4]:,}"))
-
-
-def _latest_line(logs):
-    """After an undo: the new most recent log entry (highest ID left), the one the next undo takes."""
-    last = max(logs, key=lambda r: r[5], default=None)
-    return "Latest entry now: " + (_entry_line(last) if last else "none (no entries left in this file)") + "\n"
-
-
 def undo(d):
-    """Remove the most recent record (LIFO by ID): a log entry, a base change (@BU), whose
-    previous base is put back, or a first-time account save (@BU with legend @ACCOUNT), whose
-    previous totals (none) are put back. An account gain entry (SRC A) has an @BU snapshot with
-    its own ID: both go together and the totals before the gain are restored exactly.
-    The month file is written first, then account_stats.txt.
-    The reply ends with the new latest log entry, so the current state is visible."""
-    cur, path = current_path(d)
-    state = load(path)
-    _, _, logs, hl, _, _, bu = state
-    if not logs and not bu:
+    """Revert the most recent action (LIFO): every record of the file with the highest ID.
+    That is one log entry, one Change (a base change or the first account save), or both: an
+    account gain's entry and the snapshot of the totals before it, which share an ID.
+    Each record is reverted on its own terms: a Change puts back the value it replaced; an entry
+    takes its kills/wins back out of the account totals, unless a Change already restored them.
+    The month file is written first, then account_stats.txt. Returns the text to print, which ends
+    with the entry that is now the latest one."""
+    cur, path, m = load_current(d)
+    top = max([e.id for e in m.logs] + [c.id for c in m.changes], default=None)
+    if top is None:
         raise ValueError("Nothing to undo.")
-    last = max(logs, key=lambda r: r[5], default=None)
-    change = max(bu, key=lambda b: b[0], default=None)
-    if change and (last is None or change[0] > last[5]):
-        bu.remove(change)
-        note = _rewrite(d, cur, path, state)
-        _, stamp, legend, old = change
-        if legend == ACC_TAG:  # account totals saved without a log entry: put the old ones back
-            restore_account(d, old)
-            what = ("restored to " + paint(f"KILLS {old[0]:,} | WINS {old[1]:,}")) if old else "removed (not set before)"
-            return f"Undone: {stamp} | ACCOUNT {what}  ({note})\n" + _latest_line(logs)
-        restore_base(d, legend, old)
-        if old:
-            t = legend_totals(hl, logs).get(legend, zero())
-            what = "restored to " + paint(f"KILLS {old[0] + t[1]:,} | WINS {old[1] + t[2]:,}") + " (all-time)"
-        else:
-            what = "removed (no base before)"
-        return f"Undone: {stamp} | BASE {legend} {what}  ({note})\n" + _latest_line(logs)
-    logs.remove(last)
-    snap = next((b for b in bu if b[0] == last[5] and b[2] == ACC_TAG), None)  # account gain snapshot
-    if snap:
-        bu.remove(snap)
-    note = _rewrite(d, cur, path, state)
-    if snap and snap[3]:  # account gain: the totals go back exactly to what they were before it
-        restore_account(d, snap[3])
-    elif last[6]:  # only entries that were added to the account totals are taken back out
-        bump_account(d, -last[2], -last[3])
-    acct = "  [ACCOUNT restored to " + paint(f"KILLS {snap[3][0]:,} | WINS {snap[3][1]:,}") + "]" if snap and snap[3] else ""
-    return f"Undone: {_entry_line(last)}  ({note}){acct}\n" + _latest_line(logs)
+    entry = next((e for e in m.logs if e.id == top), None)
+    change = next((c for c in m.changes if c.id == top), None)
+    if entry:
+        m.logs.remove(entry)
+    if change:
+        m.changes.remove(change)
+    note = _rewrite(d, cur, path, m)
+    if change and change.is_account:
+        restore_account(d, change.old)
+    elif change:
+        put_base(d, change.target, change.old)
+    if entry and entry.acc and not (change and change.is_account):
+        bump_account(d, -entry.kills, -entry.wins)
+    logged = None
+    if change and not change.is_account:  # the legend's logged kills/wins, shown with its restored base
+        t = legend_totals(m.hl, m.logs).get(change.target, zero())
+        logged = (t[1], t[2])
+    return fmt_undo(note, m.latest(), entry, change, logged)
 
 
 def save_level(d, token, when=None):

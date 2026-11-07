@@ -43,13 +43,14 @@ You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. 
 | `3l` (or `+3`) | Adds 3 levels |
 | `5k` | 5 kills only |
 | `1w` | 1 win only |
+| `5k wraith` | 5 kills only, for Wraith (also `1w wraith`) |
 
 ## Sticky legend (interactive mode)
 
 The sticky legend is **OFF** by default.
 
 - `p` turns it ON or OFF.
-- While it is ON, the legend you type is pinned. Matches without a legend use it, and so do `<n>k` and `<n>w`.
+- While it is ON, the legend you type is pinned. Matches without a legend use it, and so do `<n>k` and `<n>w` (unless you type a legend after them, e.g. `5k wraith`).
 - `-` unpins the legend and turns sticky OFF.
 
 ```
@@ -75,8 +76,8 @@ Latest entry now: 2026-11-06 21:41 | Wraith | WINS 1 | KILLS 4 | LEVEL 0
 | Command | Shows |
 |---|---|
 | `report` | Account totals, match summaries (month, semiannual, annual, all-time) and levels gained |
-| `m` | Kills and wins this month |
-| `l` | Base legends' all-time totals, next to the top 3 legends by kills this month |
+| `m` | Kills and wins this month + top 5 all-time highest-kill matches |
+| `l` | Base legends' all-time totals (most kills first) with the date and time of their last match, next to the top 3 legends by kills this month |
 | `lv` | Levels gained over 1 week, 1/3/6 months and 1 year |
 | `k` / `w` | Kills / wins per legend for each period, with a `GRAND TOTAL` |
 | `log` | This month's matches (no `account`/`base` gains or level updates) |

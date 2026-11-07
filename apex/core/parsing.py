@@ -14,6 +14,24 @@ class InputError(ValueError):
     """Unrecognized command or malformed input: the REPL answers with QUICK_GUIDE."""
 
 
+def is_quick(token):
+    """A single-token entry: a level ("700", "+3") or a quick entry ("3l", "5k", "1w")."""
+    return bool(LEVEL_RE.match(token) or QUICK_RE.match(token))
+
+
+def parse_quick(tokens):
+    """A single-token entry -> (token, legend or None); None if tokens are not one. Only <n>k / <n>w
+    take an optional legend after them ("5k wraith"); levels ("700", "3l", "+3") never take one.
+    ValueError (from parse_legend) for a number among the legend tokens."""
+    head = tokens[0]
+    if len(tokens) == 1:
+        return (head, None) if is_quick(head) else None
+    m = QUICK_RE.match(head)
+    if m and m.group(2).lower() in "kw":
+        return head, parse_legend(tokens[1:])
+    return None
+
+
 def to_int(s):
     """Whole number from user input, with or without thousands separators ("15,000")."""
     return int(s.replace(",", ""))

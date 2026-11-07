@@ -3,12 +3,12 @@
 
 def latest_level(logs, lv):
     """Current account level: the latest (= highest, levels never decrease) recorded; 0 if none."""
-    return max([n for _, n in lv] + [r[4] for r in logs], default=0)
+    return max([n for _, n in lv] + [e.level for e in logs], default=0)
 
 
 def last_level(stamp, logs, lv):
     """Last (= highest) level recorded at or before stamp; 0 if none."""
-    before = [n for _, n in lv] + [r[4] for r in logs if r[4] and r[0] <= stamp]
+    before = [n for _, n in lv] + [e.level for e in logs if e.level and e.date <= stamp]
     return max(before, default=0)
 
 
@@ -19,7 +19,7 @@ def check_level(level, stamp, logs, lv):
     last = last_level(stamp, logs, lv)
     if level < last:
         raise ValueError(f"Error: level {level:,} is lower than the last recorded level ({last:,}).")
-    after = [(r[4], r[0]) for r in logs if r[4] and r[0] > stamp]
+    after = [(e.level, e.date) for e in logs if e.level and e.date > stamp]
     if after:
         nxt, when = min(after)
         if level > nxt:

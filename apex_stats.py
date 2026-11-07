@@ -10,7 +10,7 @@ Usage:
   python apex_stats.py l        (base legends' all-time kills and wins + top 3 legends by kills this month)
   python apex_stats.py m
   python apex_stats.py <n> | <n>l | +<n>  [--date ...]   (set level n / add n levels)
-  python apex_stats.py <n>k | <n>w        [--date ...]   (n kills only / n wins only, no legend)
+  python apex_stats.py <n>k | <n>w [legend] [--date ...]   (n kills only / n wins only, optional legend)
   python apex_stats.py lv       (level report)
   python apex_stats.py k | w    (kills / wins per legend)
   python apex_stats.py log      (this month's matches; account and base updates excluded)
@@ -26,7 +26,7 @@ Usage:
                                  afterwards, log the gain (new - current) as a match for it)
   python apex_stats.py c        (quick-start cheat sheet)
   python apex_stats.py          (interactive mode: "<kills> <wins> [legend]", "<kills> <legend>", <n>, <n>l,
-                                 <n>k, <n>w, account [kills] [wins], base <legend> <kills> <wins>,
+                                 <n>k, <n>w, account [<kills> <wins>], base <legend> <kills> <wins>,
                                  report, m, l, lv, k, w, log, logl, undo, c, date YYYY-MM-DD |
                                  date today, p (sticky legend ON/OFF), - (unpin it, sticky OFF);
                                  an empty line quits)
@@ -63,7 +63,7 @@ File format (O(1) parsing per line via a constant prefix in the first column):
   @HL    all-time totals per legend (previous months)
   @PL    per-month, per-legend totals (last 11 months)
   @LV    highest level reached per day (previous months, last year + 1 baseline)
-  @BU    base changes of this month (id, date, legend, previous base), so undo can revert them
+  @BU    base and @ACCOUNT changes of this month (id, date, target, old value), so undo reverts them
   L      one log entry (date, legend, kills, wins, level, id, acc, src = M/A/B/L origin)
   #      headers/comments (ignored by the parser)
   Summaries after "# SUMMARY" are recomputed on every write and never parsed.

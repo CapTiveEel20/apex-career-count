@@ -3,7 +3,8 @@ import argparse
 import os
 import sys
 
-from apex.core.parsing import LEVEL_RE, QUICK_RE, InputError, parse_match
+from apex.config import ALIASES
+from apex.core.parsing import InputError, is_quick, parse_match, parse_quick
 from apex.display import colors
 from apex.display.colors import paint
 from apex.display.messages import fmt_saved
@@ -17,13 +18,13 @@ from apex.ui.repl import interactive
 USAGE_ADD = ('python apex_stats.py add <kills> <wins> [legend] | <kills> <legend> [--l NAME] '
              '[--date "YYYY-MM-DD[ HH:MM]"]'
              '   # <kills> <legend> = 1 win; legend defaults to "-"; matches take no level (use <n> / <n>l)')
-USAGE_NUM = ('python apex_stats.py <n> | <n>l | +<n> | <n>k | <n>w [--date "YYYY-MM-DD[ HH:MM]"]'
+USAGE_NUM = ('python apex_stats.py <n> | <n>l | +<n> | <n>k [legend] | <n>w [legend] [--date "YYYY-MM-DD[ HH:MM]"]'
              "   # <n> = absolute level, <n>l (or +<n>) = n more levels, <n>k / <n>w = n kills / n wins only")
 USAGE_REPORT = "python apex_stats.py report   # match summaries, followed by the level report (same as lv)"
 USAGE_L = "python apex_stats.py l   # base legends' all-time kills and wins, next to the top 3 legends by kills this month"
 USAGE_K = "python apex_stats.py k   # kills per legend: month, semiannual, annual, all-time + GRAND TOTAL"
 USAGE_W = "python apex_stats.py w   # wins per legend: month, semiannual, annual, all-time + GRAND TOTAL"
-USAGE_M = "python apex_stats.py m   # total kills and wins of the current file"
+USAGE_M = "python apex_stats.py m   # kills and wins of the current file + top 5 all-time highest-kill matches"
 USAGE_LV = "python apex_stats.py lv   # levels gained over 1 week, 1/3/6 months and 1 year"
 USAGE_UNDO = ("python apex_stats.py undo   # remove the most recently added entry, base or account change "
               "(repeat to go further back)")
@@ -74,11 +75,16 @@ def cmd_level(argv):
     """python apex_stats.py [--dir PATH] <n> | <n>l | +<n> | <n>k | <n>w [--date ...]"""
     lp = argparse.ArgumentParser(prog="apex_stats.py", usage="\n  " + USAGE_NUM)
     lp.add_argument("value", metavar="<n> | <n>l | <n>k | <n>w")
+    lp.add_argument("legend", nargs="*", metavar="[legend]", help="legend of <n>k / <n>w (levels take none)")
     lp.add_argument("--date", metavar='"YYYY-MM-DD[ HH:MM]"')
     lp.add_argument("--dir", metavar="<path>", default=DEFAULT_DIR)
     a = lp.parse_args(argv)
     try:
-        _, _, level, rec = save_quick(a.dir, a.value, a.date)
+        quick = parse_quick([a.value] + a.legend)
+        if not quick:
+            raise ValueError("Error: levels take no legend; only <n>k / <n>w do (e.g. 5k wraith).")
+        token, legend = quick
+        _, _, level, rec = save_quick(a.dir, token, a.date, legend)
     except ValueError as e:
         sys.exit(paint(str(e)))
     print(fmt_saved(rec, level))
@@ -128,10 +134,8 @@ def main():
         return
     argv = sys.argv[1:]
     i = 2 if argv[0] == "--dir" and len(argv) > 2 else 0
-    if argv[i] == "duno":  # hidden alias of undo: never listed in any usage, help or menu text
-        argv[i] = "undo"
-    first = argv[i]
-    if LEVEL_RE.match(first) or QUICK_RE.match(first):  # "700", "3l", "+3", "5k", "1w"
+    argv[i] = ALIASES.get(argv[i], argv[i])  # hidden aliases: never listed in any usage, help or menu text
+    if is_quick(argv[i]):  # "700", "3l", "+3", "5k", "1w"
         cmd_level(argv)
         return
     ap = argparse.ArgumentParser(usage=USAGE, description="Apex Legends stats tracker on .txt files")
@@ -148,7 +152,7 @@ def main():
     p.add_argument("--date", metavar='"YYYY-MM-DD[ HH:MM]"', help="date of the entry (default: now)")
     p.set_defaults(fn=cmd_add)
     for name, usage, hlp in (("report", USAGE_REPORT, "match summaries + level report"),
-                             ("m", USAGE_M, "total kills and wins of the current file"),
+                             ("m", USAGE_M, "kills and wins of the current file + top 5 matches"),
                              ("l", USAGE_L, "base legends (all-time) + top 3 by kills this month"),
                              ("lv", USAGE_LV, "levels gained (report only)"),
                              ("k", USAGE_K, "kills per legend (month, semiannual, annual, all-time)"),

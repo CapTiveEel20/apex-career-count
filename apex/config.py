@@ -22,3 +22,7 @@ TAG_W, REF_W, LEG_W = 7, 13, 12
 # Log record: (date, legend, kills, wins, level, id, acc, src)  acc = 1 if added to the account totals
 # src = where the entry came from (SRC column): a match, an account update, a base update or a level update
 SRC_MATCH, SRC_ACCOUNT, SRC_BASE, SRC_LEVEL = "M", "A", "B", "L"
+# Hidden command aliases (alias -> command), accepted by the CLI and the REPL but never shown in any
+# usage, help, menu or document
+ALIASES = {"duno": "undo"}
+TOP_MATCHES = 5  # size of the all-time highest-kill matches leaderboard ('m')

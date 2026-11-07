@@ -5,17 +5,15 @@ from apex.display.colors import green, paint, red
 from apex.display.messages import account_line, fmt_saved, level_txt
 from apex.services.entries import current_level, save_log
 from apex.storage.account_file import load_account, save_account
-from apex.storage.atomic import write_atomic
-from apex.storage.monthly_file import month_path, next_id, open_month, render
+from apex.storage.monthly_file import open_month, save_change
 
 
 def record_account(d, when=None):
-    """Undo record of a first-time account save (it logs nothing): an @BU line with legend @ACCOUNT
-    and no old totals, written to the month file before account_stats.txt changes."""
+    """Undo record of a first-time account save (it logs nothing): a Change of the account totals
+    with no old value, written to the month file before account_stats.txt changes."""
     dt = parse_when(when)
-    month, (hist, prev, logs, hl, pl, lv, bu) = open_month(d, dt, any_month=True)
-    bu.append((next_id(logs, bu), dt.strftime(DFMT), ACC_TAG, None))
-    write_atomic(month_path(d, month), render(month, hist, prev, logs, hl, pl, lv, bu))
+    month, m = open_month(d, dt, any_month=True)
+    save_change(d, month, m, dt.strftime(DFMT), ACC_TAG, None)
 
 
 def account_cmd(d, args, when=None):

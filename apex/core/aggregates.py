@@ -1,8 +1,8 @@
-"""Pure aggregation over log records: totals, per-legend totals, months and periods (no I/O)."""
+"""Pure aggregation over log entries (records.Entry): totals, per-legend totals, months and periods (no I/O)."""
 import calendar
 from datetime import date
 
-from apex.config import NA, NO_LEGEND, SEMI_MONTHS, YEAR_MONTHS
+from apex.config import NA, NO_LEGEND, SEMI_MONTHS, SRC_MATCH, TOP_MATCHES, YEAR_MONTHS
 
 
 def zero():
@@ -30,16 +30,16 @@ def months_ago(d, n):
 
 def log_agg(logs):
     t = zero()
-    for r in logs:
-        t[0] += 1; t[1] += r[2]; t[2] += r[3]
+    for e in logs:
+        t[0] += 1; t[1] += e.kills; t[2] += e.wins
     return t
 
 
 def legend_agg(logs):
     d = {}
-    for r in logs:
-        t = d.setdefault(r[1], zero())
-        t[0] += 1; t[1] += r[2]; t[2] += r[3]
+    for e in logs:
+        t = d.setdefault(e.legend, zero())
+        t[0] += 1; t[1] += e.kills; t[2] += e.wins
     return d
 
 
@@ -51,13 +51,32 @@ def legend_totals(hl, logs):
     return out
 
 
+def last_logged(ll, logs):
+    """{legend: date and time of its last match}: the carried @LL values + the file's match entries
+    (SRC match; account / base gains and level updates do not count). Entries without a legend are
+    left out. Older @LL values hold only the day; they still compare correctly as text."""
+    out = dict(ll)
+    for e in logs:
+        if e.src == SRC_MATCH and e.legend != NO_LEGEND:
+            out[e.legend] = max(out.get(e.legend, ""), e.date)
+    return out
+
+
+def top_matches(top, logs, n=TOP_MATCHES):
+    """All-time leaderboard of single matches by kills, [(date, legend, kills, wins)], best first:
+    the carried @TK rows + the file's match entries (SRC match; account / base gains are not
+    matches). Ties: the earlier match ranks first. Matches with 0 kills never qualify."""
+    rows = list(top) + [(e.date, e.legend, e.kills, e.wins) for e in logs if e.src == SRC_MATCH and e.kills > 0]
+    return sorted(rows, key=lambda r: (-r[2], r[0]))[:n]
+
+
 def day_levels(logs):
     """day -> highest level recorded that day (level 0 = not recorded)."""
     d = {}
-    for r in logs:
-        if r[4]:
-            day = r[0][:10]
-            d[day] = max(d.get(day, 0), r[4])
+    for e in logs:
+        if e.level:
+            day = e.date[:10]
+            d[day] = max(d.get(day, 0), e.level)
     return d
 
 

@@ -7,8 +7,7 @@ from apex.display.messages import fmt_saved
 from apex.display.tables import REP_NAMES, rep_cells, vals_cells
 from apex.services.entries import save_log
 from apex.storage.account_file import load_acct, save_base
-from apex.storage.atomic import write_atomic
-from apex.storage.monthly_file import current_month, load, month_path, next_id, open_month, render
+from apex.storage.monthly_file import current_month, load, month_path, open_month, save_change
 
 
 def legend_logged(d):
@@ -16,8 +15,8 @@ def legend_logged(d):
     cur = current_month(d)
     if not cur:
         return {}
-    _, _, logs, hl, _, _, _ = load(month_path(d, cur))
-    return legend_totals(hl, logs)
+    m = load(month_path(d, cur))
+    return legend_totals(m.hl, m.logs)
 
 
 def base_table(bases, logged):
@@ -36,11 +35,9 @@ def base_table(bases, logged):
 
 def record_base(d, opened, legend, kills, wins, acct, stamp):
     """Save a base change that logs nothing (set, correct, remove) so that undo can revert it:
-    its @BU record (the previous base) goes into the month file first, then the new base is
+    its Change (the previous base) goes into the month file first, then the new base is
     written to account_stats.txt."""
-    month, (hist, prev, logs, hl, pl, lv, bu) = opened
-    bu.append((next_id(logs, bu), stamp, legend, acct[1].get(legend)))
-    write_atomic(month_path(d, month), render(month, hist, prev, logs, hl, pl, lv, bu))
+    save_change(d, *opened, stamp, legend, acct[1].get(legend))
     save_base(d, legend, kills, wins, acct)
 
 
@@ -74,8 +71,8 @@ def base_cmd(d, args, when=None):
     if not (kills or wins):
         record_base(d, opened, legend, 0, 0, acct, stamp)
         return f"REMOVED - BASE {legend}\n"
-    _, (_, _, logs, hl, _, _, _) = opened
-    t = legend_totals(hl, logs).get(legend, zero())
+    m = opened[1]
+    t = legend_totals(m.hl, m.logs).get(legend, zero())
     lk, lw = t[1], t[2]  # kills / wins already logged for this legend
     saved = ("SAVED - BASE  " + f"{legend}  " + paint(f"KILLS {kills:,}  |  WINS {wins:,}") +
              "  (all-time totals of this legend)\n")
