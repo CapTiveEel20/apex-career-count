@@ -1,7 +1,15 @@
 # Personal match data (never commit)
 apex_data/
 apex_stats_*.txt
+account_stats.txt
 *.tmp
+
+# Compiled executables (PyInstaller)
+*.exe
+/apex_stats
+build/
+dist/
+*.spec
 
 # Python
 __pycache__/
