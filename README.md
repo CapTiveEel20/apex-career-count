@@ -11,16 +11,17 @@ A lightweight command-line tracker for your **Apex Legends** sessions. Log wins,
 ## Features
 
 - **Fast logging.** Record a session with one command, or type entries one after another in interactive mode.
-- **Smart input.** Type `<kills> <wins> [legend] [level]`. The script works out on its own whether the third value is a legend or a level.
+- **Simple input.** A match is `<kills> <wins> [legend]`, or `<kills> <legend>` for a match with 1 win (`5 wraith`). Levels are entered on their own (`700` or `3l`), and every `SAVED` line of a match shows your current account level.
+- **Logs.** `log` lists this month's matches (without the entries created by `account` and `base` updates), and `logl` lists your level history.
 - **Level tracking.** Record your account level with a session, or on its own:
   - type just the level (`700`), or
   - type `<n>l` (`3l`) to add levels to your last recorded level. `+3` still works too.
 
   `lv` shows how many levels you gained in the last week, 1 month, 3 months, 6 months and year.
 - **Level validation.** Your level can't go down. An entry with a level lower than the last one recorded is rejected.
-- **Undo.** `undo` removes the most recently added entry. Repeat it to keep stepping back, one entry at a time.
+- **Undo.** `undo` removes the most recently added entry, or reverts the most recent `base` change. Repeat it to keep stepping back, one step at a time.
 - **Custom dates.** On the command line, `--date` works for both full entries and level-only entries. In interactive mode, set a date once (`date 2026-11-05`) and every following entry uses it.
-- **Per-legend tracking.** `l` shows the all-time kills and wins of every legend. `k` and `w` show kills or wins per legend over the month, semiannual, annual and all-time periods.
+- **Per-legend tracking.** `l` shows the all-time kills and wins of every legend with a base, next to the top 3 legends by kills this month. `k` and `w` show kills or wins per legend over the month, semiannual, annual and all-time periods.
 - **Legend bases.** `base <legend> <kills> <wins>` sets a legend's all-time totals, for example the numbers on its in-game stats card. Entries already logged for that legend are counted inside them, not added on top. After that, typing the legend's new totals logs the difference as a match, just like `account`.
 - **Everything stays in sync.** Every match you log is added both to its legend's all-time totals and to your global account totals. `undo` takes it back out of both.
 - **Calendar-based files.** One file per month (`apex_stats_YYYY-MM.txt`), started automatically when a new month begins.
@@ -31,9 +32,9 @@ A lightweight command-line tracker for your **Apex Legends** sessions. Log wins,
 - **Global account totals.** `account <kills> <wins>` saves your all-time career totals, for example the numbers shown in game, in their own file. After that, every new match is added to them automatically and `undo` takes it back out. They are never lost when a new month starts. `report`, `k` and `w` show them at the top.
 - **Update from the game.** Once your account totals are saved, `account <kills> <wins>` with the new all-time totals shown in game logs the difference as a match. You don't have to work out the numbers yourself.
 - **Quick entries.** `5k` logs 5 kills only, `1w` logs 1 win only (no legend), `3l` adds 3 levels and `700` sets your level.
-- **Sticky legend.** In interactive mode, the last legend you typed is reused by later matches and account updates that leave it out.
+- **Sticky legend.** In interactive mode, `p` turns it on: the legend you type is pinned and reused by later matches and `<n>k` / `<n>w` that leave it out.
 - **Readable numbers.** All numbers in the terminal use thousands separators, such as `15,000`. You can type kills and wins the same way.
-- **Colored output.** In a terminal, everything about kills is shown in red and everything about wins in green. This uses plain ANSI escape codes, with no extra libraries.
+- **Colored output.** In a terminal, everything about kills is shown in red, everything about wins in green, and level values in orange. This uses plain ANSI escape codes, with no extra libraries.
 
 ---
 
@@ -59,10 +60,10 @@ The script creates its data folder, `apex_data/`, next to `apex_stats.py` the fi
 ## Quick start
 
 ```bash
-# 5 kills, 1 win, playing Wraith, account now at level 57
-python apex_stats.py add 5 1 wraith 57
+# 5 kills, 1 win, playing Wraith
+python apex_stats.py add 5 1 wraith
 
-# Record just your level (a single number), or add levels with <n>l
+# Record your level (a single number), or add levels with <n>l
 python apex_stats.py 58
 python apex_stats.py 2l
 
@@ -80,17 +81,21 @@ python apex_stats.py report
 python apex_stats.py account 12000 450
 python apex_stats.py account
 
-# Later: type the new all-time totals shown in game; the difference is logged as a match
-python apex_stats.py account 12007 451 wraith
+# Later: type the new all-time totals shown in game (kills and wins only); the difference is logged
+python apex_stats.py account 12007 451
 
-# Set a legend's all-time totals (e.g. from its in-game stats card), then see all legends
+# List this month's matches, or your level history
+python apex_stats.py log
+python apex_stats.py logl
+
+# Set a legend's all-time totals (e.g. from its in-game stats card), then see your legends
 python apex_stats.py base wraith 3000 120
 python apex_stats.py l
 
 # Later: type the legend's new all-time totals; the difference is logged as a Wraith match
 python apex_stats.py base wraith 3008 121
 
-# Made a mistake? Remove the last entry
+# Made a mistake? Remove the last entry (or revert the last base change)
 python apex_stats.py undo
 
 # Or open interactive mode and type entries quickly
@@ -104,42 +109,41 @@ python apex_stats.py
 Each entry follows the same pattern, on the command line and in interactive mode:
 
 ```
-<kills> <wins> [legend] [level]
+<kills> <wins> [legend]
+<kills> <legend>
 ```
 
-**Kills come first, then wins.** The two optional values are read like this:
+**Kills come first, then wins**, then an optional legend. One number followed by a legend is a match with **1 win**. Matches take no level: levels are their own entries.
 
-| You type | Legend | Level |
+| You type | Legend | What is saved |
 |---|---|---|
-| `693` | `-` (none) | 693. A single number on its own is a level update, with wins and kills set to 0. |
+| `5 1` | `-` (none) | 5 kills, 1 win |
+| `5 1 wraith` | `Wraith` | 5 kills, 1 win |
+| `2 0 mad maggie` | `Mad maggie` | 2 kills, 0 wins (legends can contain spaces) |
+| `5 wraith` | `Wraith` | 5 kills, 1 win (one number, then a legend: the win is added for you) |
+| `3 mad maggie` | `Mad maggie` | 3 kills, 1 win |
+| `5k` | `-` (none) | 5 kills only, 0 wins. Never uses a legend. |
+| `1w` | `-` (none) | 1 win only, 0 kills. Never uses a legend. |
+| `693` | `-` (none) | Level 693. A single number on its own is a level update, with wins and kills set to 0. |
 | `3l` or `+3` | `-` (none) | Last recorded level + 3. A relative level update, with wins and kills set to 0. |
-| `5k` | `-` (none) | not recorded. 5 kills only, 0 wins. Never uses a legend. |
-| `1w` | `-` (none) | not recorded. 1 win only, 0 kills. Never uses a legend. |
-| `5 1` | `-` (none) | not recorded |
-| `5 1 wraith` | `Wraith` | not recorded |
-| `5 1 57` | `-` (none) | 57 (the third value is a number, so it's the level) |
-| `5 1 wraith 57` | `Wraith` | 57 |
-| `2 0 mad maggie 58` | `Mad maggie` | 58 (legends can contain spaces) |
-| `5 1 +3` | `-` (none) | Last recorded level + 3 |
-| `5 1 wraith +3` | `Wraith` | Last recorded level + 3 |
 
 Rules:
 
-- Kills, wins and level must be whole numbers, 0 or more. Kills and wins may use thousands separators (`15,000`). A level-only update (`<n>`, `<n>l` or `+<n>`), any `+<n>` increment and the `n` of `<n>k` / `<n>w` must be 1 or more.
+- Kills and wins must be whole numbers, 0 or more, and may use thousands separators (`15,000`). A level update (`<n>`, `<n>l` or `+<n>`) and the `n` of `<n>k` / `<n>w` must be 1 or more.
+- The win is added **only** for `<kills> <legend>`. With two numbers (`5 0 wraith`, `5 1`) they are always kills and wins, and nothing is added.
+- A number after kills and wins, or after the legend (`5 1 57`, `5 1 wraith +3`, `5 wraith 57`), is rejected: matches take no level. In interactive mode it shows the quick guide.
 - `<n>k`, `<n>w` and `<n>l` are single values: nothing can follow them.
-- When the third value is a level, nothing can follow it.
 - Legend names are saved with a capital first letter and the rest lowercase. A `|` typed in a legend name is saved as `/`.
+- The `SAVED` line of a match shows your **current account level**: the latest level you recorded (`LEVEL -` if none yet).
 
 ### About levels
 
-The level is your **account level at the time of the entry**, not the number of levels you gained. A level of 0, or no level at all, means "not recorded".
+The level is your **account level**, not the number of levels you gained. You record it with its own entry:
 
-Every level value is read the same way, whether it is part of a full entry (`5 1 wraith 700`, `5 1 +3`) or typed on its own (`700`, `+3`), and whether or not a legend is given:
+- **Absolute: `<n>`.** Records level `n`, which becomes your new current level. It is rejected if it is lower than the last recorded level.
+- **Relative: `<n>l`, or `+<n>`.** Takes the last level recorded before the entry's date and adds `n` to it. The result is saved as an absolute level. If no level has been recorded yet, it is rejected, so enter an absolute level first.
 
-- **Absolute: `<n>` (no `+`).** Records level `n`, which becomes your new current level. It is rejected if it is lower than the last recorded level.
-- **Relative: `<n>l` on its own, or `+<n>`.** Takes the last level recorded before the entry's date and adds `n` to it. The result is saved as an absolute level. If no level has been recorded yet, it is rejected, so enter an absolute level first.
-
-Because an account level only goes up, the script checks each new level against the levels around its date. This applies to every way of recording a level, in full entries and level-only updates alike:
+Because an account level only goes up, the script checks each new level against the levels around its date:
 
 - It is **rejected if it is lower** than the last level recorded before its date.
 - It is **rejected if it is higher** than a level recorded after its date. This can only happen with back-dated entries.
@@ -149,12 +153,10 @@ Because an account level only goes up, the script checks each new level against 
 SAVED - LEVEL 60 (2026-11-06)
 > 2l
 SAVED - LEVEL 62 (2026-11-06)
-> 5 1 wraith +3
-SAVED  Wraith  WINS 1  KILLS 5  LEVEL 65  (2026-11-06 21:40)
-> 2 0 +1
-SAVED  -  WINS 0  KILLS 2  LEVEL 66  (2026-11-06 21:45)
+> 5 1 wraith
+SAVED  Wraith  KILLS 5  WINS 1  LEVEL 62  (2026-11-06 21:40)
 > 59
-Error: level 59 is lower than the last recorded level (66).
+Error: level 59 is lower than the last recorded level (62).
 ```
 
 ---
@@ -170,39 +172,45 @@ $ python apex_stats.py
 ===============================================================================
  [ SETUP ]   account <kills> <wins> (1st: saves totals; later: logs new - old)
  [ BASE ]    base <legend> <kills> <wins> (1st: sets total; later: logs gain)
- [ MATCH ]   <kills> <wins> [legend] [level] (e.g. 5 1 wraith 57 | 5 1 57)
- [ QUICK ]   <n>k | <n>w (kills only | wins only, no legend; e.g. 5k | 1w)
- [ LEVEL ]   <n> | <n>l (e.g. 700 sets level 700 | 3l adds 3 levels)
- [ REPORT ]  report | l | k | w | m | lv
+ [ MATCH ]   <kills> <wins> [legend] | <kills> <legend> (1 win; e.g. 5 wraith)
+ [ QUICK ]   <n>k | <n>w (n kills | n wins; pinned legend if any; e.g. 5k | 1w)
+ [ LEVEL ]   <n> | <n>l (e.g. 500 or 5l)
+ [ REPORT ]  report | m | l | lv | k | w | log | logl
  [ TOOLS ]   undo | date YYYY-MM-DD | date today | c (help)
- [ LEGEND ]  sticky: the last legend typed is reused by matches ("-" clears)
+ [ LEGEND ]  p: sticky ON/OFF (ON pins the legend you type; "-" unpins + OFF)
 -------------------------------------------------------------------------------
  Press Enter on an empty line to quit.
-> 5 1 wraith 57
-SAVED  Wraith  WINS 1  KILLS 5  LEVEL 57  (2026-11-06 21:30)
+> 57
+SAVED - LEVEL 57 (2026-11-06)
+> 5 1 wraith
+SAVED  Wraith  KILLS 5  WINS 1  LEVEL 57  (2026-11-06 21:30)
 > 1l
 SAVED - LEVEL 58 (2026-11-06)
 > undo
-Undone: 2026-11-06 21:31 | - | WINS 0 | KILLS 0 | LEVEL 58  (1 log left in 2026-11)
+Undone: 2026-11-06 21:31 | - | WINS 0 | KILLS 0 | LEVEL 58  (2 logs left in 2026-11)
 > account 12000 450
-SAVED - ACCOUNT  KILLS 12,000  |  WINS 450  (global, all-time; updated 2026-11-06 21:31)
+SAVED - ACCOUNT  KILLS 12,000  |  WINS 450  |  LEVEL 57  (global, all-time; updated 2026-11-06 21:31)
 > base bangalore 2500 90
 SAVED - BASE  Bangalore  KILLS 2,500  |  WINS 90  (all-time totals of this legend)
-> 3 0 bangalore
-SAVED  Bangalore  WINS 0  KILLS 3  LEVEL 0  (2026-11-06 21:33)
+> p
+  Sticky legend ON: the next legend you type is pinned.
+[sticky ON]> 3 0 bangalore
+SAVED  Bangalore  KILLS 3  WINS 0  LEVEL 57  (2026-11-06 21:33)
 [Bangalore]> 2 1
-SAVED  Bangalore  WINS 1  KILLS 2  LEVEL 0  (2026-11-06 21:40)
+SAVED  Bangalore  KILLS 2  WINS 1  LEVEL 57  (2026-11-06 21:40)
 [Bangalore]> 2k
-SAVED  -  WINS 0  KILLS 2  LEVEL 0  (2026-11-06 21:52)
+SAVED  Bangalore  KILLS 2  WINS 0  LEVEL 57  (2026-11-06 21:52)
 [Bangalore]> account 12,013 452
-ACCOUNT  KILLS 12,007 -> 12,013 (+6)  |  WINS 451 -> 452 (+1)
-SAVED  Bangalore  WINS 1  KILLS 6  LEVEL 0  (2026-11-06 22:05)
-[Bangalore]> 4 0 -
-SAVED  -  WINS 0  KILLS 4  LEVEL 0  (2026-11-06 22:10)
+ACCOUNT  KILLS 12,007 -> 12,013 (+6)  |  WINS 451 -> 452 (+1)  |  LEVEL 57
+SAVED  -  KILLS 6  WINS 1  LEVEL 57  (2026-11-06 22:05)
+[Bangalore]> account 12,010 452
+Error: KILLS 12,010 | WINS 452 is lower than the saved account totals (KILLS 12,013 | WINS 452); nothing changed.
+[Bangalore]> -
+  Sticky legend cleared and OFF: entries without a legend are saved with no legend.
 > date 2026-11-07
   Active date: 2026-11-07
-[2026-11-07]> 4 0 lifeline 58
-SAVED  Lifeline  WINS 0  KILLS 4  LEVEL 58  (2026-11-07 21:32)
+[2026-11-07]> 4 0 lifeline
+SAVED  Lifeline  KILLS 4  WINS 0  LEVEL 57  (2026-11-07 21:32)
 [2026-11-07]> date today
   Active date: today (system)
 >
@@ -210,50 +218,57 @@ SAVED  Lifeline  WINS 0  KILLS 4  LEVEL 58  (2026-11-07 21:32)
 
 The menu at the top is the **quick guide**, shown as soon as the prompt opens. `account` comes first, so you can set your global totals before anything else. The last line is an empty input (just Enter), which closes the prompt.
 
-**Sticky legend.** When you type a legend in an entry, the prompt remembers it and shows it, e.g. `[Bangalore]>`. Later matches and `account` updates that leave the legend out use the remembered one instead of `-`. Typing another legend replaces it, and typing `-` as the legend (`4 0 -`) clears it. The quick entries `<n>k` and `<n>w` are independent: they never use the sticky legend and never change it. Level-only updates (`700`, `3l`) never use it either. The memory lasts until you close the prompt. With a custom date active, the prompt shows both, e.g. `[2026-11-07 | Bangalore]>`.
+**Sticky legend.** It is **OFF** by default: a legend you type is used only by that match. Type `p` to turn it **ON** (the prompt shows `[sticky ON]>`). While it is ON, the legend you type in a match is pinned and shown in the prompt, e.g. `[Bangalore]>`, and later matches that leave the legend out use it instead of `-`. The quick entries `<n>k` and `<n>w` use the pinned legend too, without changing it. Typing another legend pins that one instead. Typing `p` again turns sticky OFF and unpins the legend. Typing `-` on its own unpins it and turns sticky OFF, without saving anything, so the prompt goes back to plain `>`; typing `-` as the legend of a match (`4 0 -`) does the same and saves the match with no legend. `account` updates never use it: they take only kills and wins, and their gain is logged with no legend. Level-only updates (`700`, `3l`) never use it either. The setting lasts until you close the prompt. With a custom date active, the prompt shows both, e.g. `[2026-11-07 | Bangalore]>`.
 
-If you type something the prompt doesn't recognize or can't parse, it shows the quick guide again. Examples are an unknown command, `help`, `lv 5`, `5 x`, `3x`, `5k wraith`, `account 5`, `base wraith 5` or a malformed `date`. Input that is well-formed but breaks a rule gets a specific error message instead, such as a level lower than the last one recorded.
+If you type something the prompt doesn't recognize or can't parse, it shows the quick guide again. Examples are an unknown command, `help`, `lv 5`, `x 5`, `3x`, `5k wraith`, a match with a level (`5 1 wraith 57`), `account 5`, `account 12000 450 wraith`, `base wraith 5` or a malformed `date`. Input that is well-formed but breaks a rule gets a specific error message instead, such as a level lower than the last one recorded.
 
 | Input | What it does |
 |---|---|
-| `<kills> <wins> [legend] [level]` | Saves an entry (see [Entry format](#entry-format)). |
+| `<kills> <wins> [legend]` | Saves a match (see [Entry format](#entry-format)). |
+| `<kills> <legend>` | Saves a match with 1 win, e.g. `5 wraith`. With sticky ON, the legend is pinned. |
+| `p` | Turns the sticky legend ON or OFF (OFF by default). Turning it OFF unpins the legend. |
+| `-` | Unpins the sticky legend and turns sticky OFF. Nothing is saved. |
 | `<n>` (a single number) | Records level `n` on its own, with wins and kills set to 0 and the legend set to `-`. `n` must be 1 or more. |
 | `<n>l` (or `+<n>`) | Adds `n` to the last recorded level and saves the result as a level-only entry, e.g. `3l`. |
-| `<n>k` | Logs `n` kills and 0 wins, with no legend, e.g. `5k`. `n` must be 1 or more. |
-| `<n>w` | Logs `n` wins and 0 kills, with no legend, e.g. `1w`. |
+| `<n>k` | Logs `n` kills and 0 wins, e.g. `5k`, with the pinned legend if there is one (no legend otherwise). `n` must be 1 or more. |
+| `<n>w` | Logs `n` wins and 0 kills, e.g. `1w`, with the pinned legend if there is one (no legend otherwise). |
 | `lv` | Shows levels gained over rolling time windows. It never records a level, so `lv 5` is rejected and shows the quick guide. |
-| `undo` | Removes the most recently added entry. Repeat it to go further back. |
+| `undo` | Removes the most recently added entry, or reverts the most recent `base` change. Repeat it to go further back. |
 | `account` | Shows your saved global account totals (see [`account`](#account-global-account-totals)). |
-| `account <kills> <wins> [legend] [level]` | The first time, saves your global all-time account totals, kills first. After that, logs the difference between these new totals and the saved ones as a match (see [`account`](#account-global-account-totals)). |
+| `account <kills> <wins>` | Kills and wins only, nothing else. The first time, saves your global all-time account totals, kills first. After that, logs the difference between these new totals and the saved ones, with no legend (see [`account`](#account-global-account-totals)). |
 | `base <legend> <kills> <wins>` | The first time for a legend, sets its all-time totals. After that, logs the difference between these new totals and its current ones as a match for that legend (see [`base`](#base-legend-totals)). `base` on its own lists the legends with a base. |
 | `date YYYY-MM-DD` | Uses this date for every following entry, both full entries and level-only updates. The time is taken from the clock when each entry is saved. While a custom date is active, the prompt shows it, e.g. `[2026-11-07]>`. |
 | `date today` | Goes back to the system date. |
 | `m` | Shows total kills and wins for the current month. |
 | `report` | Shows your global account totals, then the match summaries, then the level report (same as `lv`). |
-| `l` | Shows one all-time table: total kills and wins per legend, base plus logged entries. Entries without a legend are excluded. |
+| `l` | Shows two tables side by side: the all-time kills and wins of every legend with a base (base plus logged entries), and the top 3 legends by kills logged this month. |
 | `k` | Shows your global account kills, then kills only, per legend: month, semiannual, annual and all-time total, plus a `GRAND TOTAL` row for all legends combined. |
 | `w` | Shows your global account wins, then wins only, per legend: month, semiannual, annual and all-time total, plus a `GRAND TOTAL` row for all legends combined. |
+| `log` | Lists this month's matches, oldest first (see [`log`](#log-and-logl-match-log-and-level-history)). |
+| `logl` | Lists your level history (see [`logl`](#log-and-logl-match-log-and-level-history)). |
 | `c` | Shows the quick-start cheat sheet: the input formats, a one-line list of every command and the main rules. This is the only help command. |
 | *(empty line)* | Press Enter without typing anything to exit. This is the only exit command; `q` is not one. If the input stream closes, for example with `Ctrl+Z`/`Ctrl+D` or `Ctrl+C`, the prompt also stops cleanly. |
 
-Each entry is saved immediately, the same way as with `add`, and confirmed with a `SAVED` line. Level-only updates show just the level and the day, e.g. `SAVED - LEVEL 693 (2026-11-06)`. An `account` update that logs a match first prints an `ACCOUNT` line with the old and new totals. After bad input the prompt stays open. Interactive mode always uses the default `apex_data/` folder.
+Each entry is saved immediately, the same way as with `add`, and confirmed with a `SAVED` line. Level-only updates show just the level and the day, e.g. `SAVED - LEVEL 693 (2026-11-06)`. Matches show your current account level. An `account` update that logs its gain first prints an `ACCOUNT` line with the old and new totals. After bad input the prompt stays open. Interactive mode always uses the default `apex_data/` folder.
 
 ---
 
 ## CLI commands
 
 ```
-python apex_stats.py add <kills> <wins> [legend] [level] [--l NAME] [--date "YYYY-MM-DD[ HH:MM]"]
+python apex_stats.py add <kills> <wins> [legend] | <kills> <legend> [--l NAME] [--date "YYYY-MM-DD[ HH:MM]"]
 python apex_stats.py <n> | <n>l | +<n> [--date "YYYY-MM-DD[ HH:MM]"]
 python apex_stats.py <n>k | <n>w [--date "YYYY-MM-DD[ HH:MM]"]
 python apex_stats.py lv
 python apex_stats.py undo
 python apex_stats.py report
+python apex_stats.py m
 python apex_stats.py l
 python apex_stats.py k
 python apex_stats.py w
-python apex_stats.py m
-python apex_stats.py account [<kills> <wins> [legend] [level]] [--l NAME] [--date "YYYY-MM-DD[ HH:MM]"]
+python apex_stats.py log
+python apex_stats.py logl
+python apex_stats.py account [<kills> <wins>] [--date "YYYY-MM-DD[ HH:MM]"]
 python apex_stats.py base [<legend> <kills> <wins>] [--date "YYYY-MM-DD[ HH:MM]"]
 python apex_stats.py c
 python apex_stats.py --dir <path> <command> ...
@@ -265,34 +280,35 @@ There is no `help` command. Use `c` instead, both on the command line and in int
 ### `add`: log a session
 
 ```bash
-python apex_stats.py add <kills> <wins> [legend] [level] [--l NAME] [--date "YYYY-MM-DD[ HH:MM]"]
+python apex_stats.py add <kills> <wins> [legend] [--l NAME] [--date "YYYY-MM-DD[ HH:MM]"]
+python apex_stats.py add <kills> <legend> [--date "YYYY-MM-DD[ HH:MM]"]        # 1 win
 ```
 
 | Argument | Required | Description |
 |---|---|---|
 | `<kills>` | yes | Kills in the session |
 | `<wins>` | yes | Wins in the session |
-| `[legend] [level]` | no | Legend and/or account level, read as described in [Entry format](#entry-format) |
+| `[legend]` | no | The legend you played. A number here is rejected: matches take no level. Given right after the kills (`add 5 wraith`, or `add 5 --l wraith`), it counts as 1 win. |
 | `--l NAME` | no | Sets the legend explicitly. It overrides a legend typed as a positional value. |
 | `--date "YYYY-MM-DD[ HH:MM]"` | no | When the session happened. Defaults to now. If you give only the day, the current time is used. |
 
 Examples:
 
 ```bash
-python apex_stats.py add 7 1 bloodhound 57
-python apex_stats.py add 3 0 58                           # level 58, no legend
-python apex_stats.py add 4 1 wraith +2                    # last recorded level + 2
-python apex_stats.py add 2 0 +1                           # last recorded level + 1, no legend
+python apex_stats.py add 7 1 bloodhound
+python apex_stats.py add 3 0                              # no legend
+python apex_stats.py add 2 0 mad maggie                   # legends can contain spaces
+python apex_stats.py add 6 wraith                         # 6 kills, 1 win
 python apex_stats.py add 3 0 --l "mad maggie" --date "2026-11-05 21:30"
 python apex_stats.py add 9 2 horizon --date 2026-11-04
 ```
 
 `add` always needs at least kills and wins. To record a level on its own, see [Level updates](#quick-entries-n-nl-nk-and-nw).
 
-After saving, the command prints a `SAVED` line and the updated summaries:
+After saving, the command prints a `SAVED` line, with your current account level, and the updated summaries:
 
 ```
-SAVED  Bloodhound  WINS 1  KILLS 7  LEVEL 57  (2026-11-06 21:30)
+SAVED  Bloodhound  KILLS 7  WINS 1  LEVEL 57  (2026-11-06 21:30)
 ```
 
 > **Note:** you can't add an entry dated in a month earlier than the newest file. That month is closed, and its totals have already been carried into the newer file.
@@ -353,7 +369,7 @@ How `GAINED` is calculated:
 - Month windows go back by calendar months, so "1 month" on 6 November starts from 6 October.
 
 
-### `undo`: remove the last entry
+### `undo`: remove the last entry or base change
 
 ```bash
 python apex_stats.py undo
@@ -361,11 +377,20 @@ python apex_stats.py undo
 
 ```
 Undone: 2026-11-06 21:31 | - | WINS 0 | KILLS 0 | LEVEL 58  (1 log left in 2026-11)
+Latest entry now: 2026-11-06 21:30 | Wraith | WINS 1 | KILLS 5 | LEVEL 0
+Undone: 2026-11-07 19:21 | BASE Wraith removed (no base before)  (4 logs left in 2026-11)
+Latest entry now: 2026-11-07 19:10 | Wraith | WINS 0 | KILLS 3 | LEVEL 0
 ```
 
-`undo` removes the entry that was **added most recently**, even if you gave it an earlier date. Run it again to remove the one before that, and so on.
+`undo` removes whatever was **added most recently**, even if you gave it an earlier date. Run it again to remove the one before that, and so on. After each `undo`, a `Latest entry now` line shows the entry that is now the most recent one (the one the next `undo` would remove, unless a `base` change came after it), or `none` when the file has no entries left. Entries and `base` changes are undone in the order you made them:
 
-When `undo` removes the last entry of a month, that month's file is deleted and the previous month becomes the current file again. Further `undo` calls continue in that month. Older files are never changed when a new month starts, so they are still exactly as they were.
+- **An entry** is removed, and its kills and wins are taken back out of the account totals.
+- **A `base` change that logged nothing** (setting a legend for the first time, a correction, or `0 0`) is reverted: the legend gets back the base it had before, or loses it if it had none. The account totals don't change.
+- **A `base` update that logged a gain** is a normal match entry, so `undo` removes it like any other entry.
+- **An `account` update that logged a gain** is removed, and the account totals go back **exactly** to what they were before it, including their `updated` time. The `Undone` line ends with `[ACCOUNT restored to KILLS ... | WINS ...]`.
+- **The first `account` save** (which logs nothing) is reverted too: the account totals are removed, as if they had never been set (`Undone: ... | ACCOUNT removed (not set before)`).
+
+When `undo` removes the last entry or base change of a month, that month's file is deleted and the previous month becomes the current file again. Further `undo` calls continue in that month. Older files are never changed when a new month starts, so they are still exactly as they were.
 
 ### `report`: match and level statistics
 
@@ -403,23 +428,27 @@ PERIOD        | FROM       |  GAINED
 
 The report tables show only kills, wins and levels, never a count of entries. The `ACCOUNT` line shows the totals you saved with `account`. It is separate from the tables below it, which count only the matches logged with this tool. If you haven't saved account totals yet, it reads `ACCOUNT  not set yet (use: account <kills> <wins>)`.
 
-### `l`: all-time totals by legend
+### `l`: legends at a glance
 
 ```bash
 python apex_stats.py l
 ```
 
-One all-time table, with no time periods: the total kills and wins of every legend. Each total is the legend's [base](#base-legend-totals) plus every entry you have logged for it, so after `base wraith 3000 120` Wraith shows exactly 3,000 kills and 120 wins, then grows with every match. Only real legend names are listed. Entries without a legend, such as level-only updates, `<n>k` / `<n>w` quick entries or matches saved without a legend, are left out of this table. They still count in `report` and in the account totals.
+Two tables side by side:
+
+- **Left: all-time totals of your base legends.** Every legend you set with [`base`](#base-legend-totals), with its total kills and wins: the base plus every entry you have logged for it. After `base wraith 3000 120`, Wraith shows exactly 3,000 kills and 120 wins, then grows with every match. Legends without a base are not listed here (they still appear in `k`, `w` and the top 3). There is no grand total row.
+- **Right: top 3 this month.** The 3 legends with the most kills logged in the current month. On equal kills, the legend with more wins comes first. Legends with no kills this month are left out.
+
+Entries without a legend, such as level-only updates, `<n>k` / `<n>w` quick entries or matches saved without a legend, appear in neither table. They still count in `report` and in the account totals.
 
 ```
-# ALL-TIME BY LEGEND  (base + logged entries; current month: 2026-11)
-# LEGEND     |    KILLS |     WINS
-----------------------------------
-Bangalore    |    2,511 |       92
-Wraith       |       15 |        5
-----------------------------------
-GRAND TOTAL  |    2,526 |       97
-==================================
+# ALL-TIME BY LEGEND  (base + logged)    # TOP 3 THIS MONTH  (2026-11)
+# LEGEND     |    KILLS |     WINS       #  | LEGEND       |    KILLS
+----------------------------------       ----------------------------
+Bangalore    |    2,511 |       92       1  | Wraith       |       15
+Wraith       |    3,000 |      120       2  | Bangalore    |       11
+==================================       3  | Lifeline     |        9
+                                         ============================
 ```
 
 ### `k` and `w`: kills or wins per legend
@@ -456,78 +485,88 @@ The periods are the same as in [`report`](#report-match-and-level-statistics). T
 python apex_stats.py c
 ```
 
-The only help command. It uses the same layout as the quick guide: the same banner and `[ SETUP ]`, `[ BASE ]`, `[ MATCH ]`, `[ QUICK ]`, `[ LEVEL ]`, `[ REPORT ]` and `[ TOOLS ]` sections. Each command gets a one-line description, and a `[ RULES ]` section follows. In a terminal, kill-related text, including `k`, is red, and win-related text, including `w`, is green.
+The only help command. It uses the same layout as the quick guide: the same banner and `[ SETUP ]`, `[ BASE ]`, `[ MATCH ]`, `[ QUICK ]`, `[ LEVEL ]`, `[ REPORT ]`, `[ TOOLS ]` and (interactive mode only) `[ LEGEND ]` sections. Each command gets a one-line description, and a `[ RULES ]` section follows. In a terminal, kill-related text, including `k`, is red, win-related text, including `w`, is green, and the `lv` command is orange.
 
 ```
-
 ===============================================================================
                               APEX STATS TRACKER
 ===============================================================================
- [ SETUP ]   account <kills> <wins>                   1st time: save your all-time totals (e.g. account 15000 800)
-             account <kills> <wins> [legend] [level]  later: log the gain (new - saved) as a match
-             account                                  show the saved global account totals
- [ BASE ]    base <legend> <kills> <wins>             1st time: set a legend's all-time totals (e.g. base wraith 3000 120)
-             base <legend> <kills> <wins>             later: log the gain (new - current) as a match for it
-             base                                     list the legends with a base and their all-time totals
- [ MATCH ]   <kills> <wins> [legend] [level]          save a match (e.g. 5 1 wraith 57 | 5 1 57)
-             <kills> <wins> [legend] +<n>             match + n levels (e.g. 5 1 wraith +3 | 5 1 +3)
- [ QUICK ]   <n>k                                     n kills only: 0 wins, no legend (e.g. 5k)
-             <n>w                                     n wins only: 0 kills, no legend (e.g. 1w)
- [ LEVEL ]   <n>                                      set your absolute level (e.g. 700)
-             <n>l                                     add n to the current level (e.g. 3l; +3 works too)
- [ REPORT ]  report                                   account totals + match summaries + level report
-             l                                        all-time kills and wins per legend (base + logged)
-             k                                        account kills + kills per legend (+ grand total)
-             w                                        account wins + wins per legend (+ grand total)
-             m                                        kills and wins this month
-             lv                                       levels gained (1 week ... 1 year)
- [ TOOLS ]   undo                                     remove the last entry (repeatable)
-             date YYYY-MM-DD                          use this date for the next entries
-             date today                               back to the system date
-             c                                        this cheat sheet (help)
+ [ SETUP ]   account <kills> <wins>        1st time: save your all-time totals (e.g. account 15000 800)
+             account <kills> <wins>        later: log the gain (new - saved), kills and wins only
+             account                       show the saved global account totals
+ [ BASE ]    base <legend> <kills> <wins>  1st time: set a legend's all-time totals (e.g. base wraith 3000 120)
+             base <legend> <kills> <wins>  later: log the gain (new - current) as a match for it
+             base                          list the legends with a base and their all-time totals
+ [ MATCH ]   <kills> <wins> [legend]       save a match (e.g. 5 1 wraith | 5 1)
+             <kills> <legend>              save a match with 1 win (e.g. 5 wraith = 5 kills, 1 win)
+ [ QUICK ]   <n>k                          n kills only: 0 wins, pinned legend if any (e.g. 5k)
+             <n>w                          n wins only: 0 kills, pinned legend if any (e.g. 1w)
+ [ LEVEL ]   <n>                           set your absolute level (e.g. 700)
+             <n>l                          add n to the current level (e.g. 3l; +3 works too)
+ [ REPORT ]  report                        account totals + match summaries + level report
+             m                             kills and wins this month
+             l                             base legends' all-time kills and wins + top 3 by kills this month
+             lv                            levels gained (1 week ... 1 year)
+             k                             account kills + kills per legend (+ grand total)
+             w                             account wins + wins per legend (+ grand total)
+             log                           this month's matches (account and base updates excluded)
+             logl                          level history (this month + earlier days)
+ [ TOOLS ]   undo                          remove the last entry or base change (repeatable)
+             date YYYY-MM-DD               use this date for the next entries
+             date today                    back to the system date
+             c                             this cheat sheet (help)
+ [ LEGEND ]  p                             sticky legend ON/OFF (OFF by default)
+             -                             unpin the legend and turn sticky OFF
 -------------------------------------------------------------------------------
- [ RULES ]   - Kills first, then wins; a numeric 3rd value is the level, text is the legend.
+ [ RULES ]   - Kills first, then wins, then an optional legend. Matches take no level.
+               <kills> <legend> (one number, then a legend) counts as 1 win.
              - Legends are saved capitalized (wraith -> Wraith).
              - Every match adds its kills and wins to its legend's all-time totals
                (base + logged: l, k, w) and to the global account totals.
-             - account: the 1st time saves your totals; later it logs (new - saved) as a
-               match. Lower values only correct the totals. undo takes a match back out.
+             - account: kills and wins only. The 1st time saves your totals; later it logs
+               (new - saved). Lower values are an error: nothing changes. undo takes it back out.
              - base: the 1st time sets the legend's all-time totals (logged entries
                included, nothing logged); later it logs (new - current) for that legend.
+               undo also reverts a base you set, corrected or removed.
              - Level <n> = absolute (never lower than the last one); <n>l adds n to it.
-             - <n>k and <n>w never use a legend.
+               SAVED lines of matches show your current account level.
+             - <n>k and <n>w use the pinned legend, if any (no legend otherwise).
              - Entries cannot be dated in a month older than the newest data file.
              - Numbers are shown with thousands separators (15,000); kills/wins may be typed so.
-             - Sticky legend: a legend you type is reused by later matches and account
-               entries that omit it, until you type another one ("-" clears it).
+             - Sticky legend: OFF by default; "p" turns it ON/OFF. While ON, the legend you
+               type is pinned and reused by matches without one and by <n>k / <n>w,
+               until you type another one. "-" unpins it and turns sticky OFF.
 -------------------------------------------------------------------------------
  Press Enter on an empty line to quit.
 ```
 
-That is the interactive version. On the command line, the match lines start with `add`, the quick and level lines start with `python apex_stats.py`, and the `date` lines are replaced by the `--date` option. The sticky-legend rule exists only in interactive mode, so the command-line version leaves it out.
+That is the interactive version. On the command line, the match lines start with `add`, the quick and level lines start with `python apex_stats.py`, and the `date` lines are replaced by the `--date` option. The sticky legend exists only in interactive mode, so the command-line version leaves out the `[ LEGEND ]` section and its rule, and says that `<n>k` / `<n>w` never use a legend.
 
 ### `account`: global account totals
 
 ```bash
 python apex_stats.py account 12000 450              # 1st time: save your totals, kills first
 python apex_stats.py account                        # show them
-python apex_stats.py account 12007 451 wraith +1    # later: log the gain as a match
+python apex_stats.py account 12007 451              # later: log the gain
 ```
 
 ```
-SAVED - ACCOUNT  KILLS 12,000  |  WINS 450  (global, all-time; updated 2026-11-06 21:31)
-ACCOUNT  KILLS 12,000  |  WINS 450  (global, all-time; updated 2026-11-06 21:31)
-ACCOUNT  KILLS 12,000 -> 12,007 (+7)  |  WINS 450 -> 451 (+1)
-SAVED  Wraith  WINS 1  KILLS 7  LEVEL 59  (2026-11-06 22:40)
+SAVED - ACCOUNT  KILLS 12,000  |  WINS 450  |  LEVEL 59  (global, all-time; updated 2026-11-06 21:31)
+ACCOUNT  KILLS 12,000  |  WINS 450  |  LEVEL 59  (global, all-time; updated 2026-11-06 21:31)
+ACCOUNT  KILLS 12,000 -> 12,007 (+7)  |  WINS 450 -> 451 (+1)  |  LEVEL 59
+SAVED  -  KILLS 7  WINS 1  LEVEL 59  (2026-11-06 22:40)
 ```
+
+Every `ACCOUNT` line of the `account` command also shows your current account level (`LEVEL -` if none is recorded yet), in orange.
+
+`account` takes **only kills and wins**: no legend, no level and no `--l`. Anything else is rejected (in interactive mode it shows the quick guide).
 
 Use this for your career totals, for example the all-time kills and wins shown in game. They are saved in `apex_data/account_stats.txt`, a separate file that never rotates, so they are kept across months.
 
-- **First time.** `account <kills> <wins>` just saves the totals. Nothing is logged, and a legend or level is rejected.
-- **Afterwards.** Type the new all-time totals shown in game. The script subtracts the saved totals and logs the difference (new - saved) as a normal match entry, with an optional legend and level read as in [Entry format](#entry-format). The account totals then become the new values.
-  - In interactive mode, an update without a legend uses the [sticky legend](#interactive-mode-repl). On the command line, use `--l NAME` or type the legend; `--date` works as with `add`.
-  - If nothing changed and no level is given, nothing is logged (`already up to date`).
-  - If a new value is lower than the saved one, it is treated as a correction: the totals are replaced and nothing is logged.
+- **First time.** `account <kills> <wins>` just saves the totals. Nothing is logged.
+- **Afterwards.** Type the new all-time totals shown in game. The script subtracts the saved totals and logs the difference (new - saved) as one entry with no legend (it never uses the sticky legend). The account totals then become the new values. `--date` works as with `add`. These entries are left out of [`log`](#log-and-logl-match-log-and-level-history).
+  - If nothing changed, nothing is logged (`already up to date`).
+  - If a new value is lower than the saved one, the update is **aborted** with an error: the saved totals are kept and nothing is logged. All-time totals never go down.
 - Both values must be whole numbers, 0 or more, with or without thousands separators (`12000` or `12,000`).
 - `account` with a single value, or with text, is rejected. In interactive mode it shows the quick guide.
 - Once set, the totals stay up to date:
@@ -552,7 +591,7 @@ python apex_stats.py base wraith 0 0             # remove Wraith's base
 ```
 SAVED - BASE  Wraith  KILLS 3,000  |  WINS 120  (all-time totals of this legend)
 BASE  Wraith  KILLS 3,000 -> 3,008 (+8)  |  WINS 120 -> 121 (+1)
-SAVED  Wraith  WINS 1  KILLS 8  LEVEL 0  (2026-11-07 22:40)
+SAVED  Wraith  KILLS 8  WINS 1  LEVEL -  (2026-11-07 22:40)
 ```
 
 Type a legend's **all-time** kills and wins, for example from its in-game stats card. `base` works like [`account`](#account-global-account-totals), but for one legend:
@@ -563,6 +602,7 @@ Type a legend's **all-time** kills and wins, for example from its in-game stats 
   - If a new value is lower than the current one, it is treated as a correction: the legend's totals are set to the new values and nothing is logged.
 - The totals can't be lower than what is already logged for that legend.
 - `0 0` removes the base. The legend's totals then count only its logged entries.
+- `undo` reverts base changes too, in the order you made them. Setting, correcting or removing a base puts the previous base back (see [`undo`](#undo-remove-the-last-entry-or-base-change)).
 - `base` on its own lists every legend with a base and its current all-time totals.
 - A legend's all-time totals in `l`, and the `ALL-TIME` column of `k` and `w`, include the base. Every new match for that legend is added on top automatically.
 - Legend names are capitalized like in entries (`wraith` -> `Wraith`), so a base always matches that legend's entries.
@@ -574,7 +614,7 @@ All numbers shown in the terminal use thousands separators: tables, `SAVED`, `AC
 
 ### Colors
 
-When the output goes to a terminal, kills are shown in **red** and wins in **green**. This covers table headers and values, `SAVED`, `ACCOUNT` and `Undone` lines, `m`, `account`, `base`, the quick guide and the cheat sheet, including the `<n>k` (red) and `<n>w` (green) shortcuts. Plain ANSI escape codes are used, with no external libraries. On Windows, the script turns on the console's ANSI support itself.
+When the output goes to a terminal, kills are shown in **red**, wins in **green** and levels in **orange**. This covers table headers and values, `SAVED`, `ACCOUNT` and `Undone` lines, `m`, `account`, `base`, the quick guide and the cheat sheet, including the `<n>k` (red) and `<n>w` (green) shortcuts. Orange is used only for level values: `SAVED - LEVEL 700` after `<n>` or `<n>l`, the `LEVEL` of every saved or undone match and of the `account` lines (word and number), the `GAINED` header and values and `current level: <n>` of the `lv` report (also at the end of `report`), the last recorded level `(Y)` in the "lower than the last recorded level" error, and in the menus the `lv` command plus the `<n>` / `<n>l` inputs and their examples (`500`, `5l`). Level words such as the `[ LEVEL ]` tag stay uncolored. In `logl`, the `LEVEL` and `CHANGE` values are orange. Plain ANSI escape codes are used, with no external libraries. On Windows, the script turns on the console's ANSI support itself.
 
 Colors are switched off automatically when the output is redirected to a file or a pipe, and when the `NO_COLOR` environment variable is set. Data files never contain color codes.
 
@@ -587,6 +627,34 @@ python apex_stats.py m
 ```
 MONTH 2026-11  |  KILLS 22  |  WINS 2
 ```
+
+### `log` and `logl`: match log and level history
+
+```bash
+python apex_stats.py log
+python apex_stats.py logl
+```
+
+```
+# MATCH LOG  (month 2026-11; account and base updates excluded)
+DATE             | LEGEND       |    KILLS |     WINS
+-----------------------------------------------------
+2026-11-01 10:00 | Wraith       |        5 |        1
+2026-11-02 10:00 | Mad maggie   |        2 |        1
+2026-11-03 11:00 | -            |        4 |        0
+=====================================================
+
+# LEVEL HISTORY  (month 2026-11; earlier months: highest level per day)
+DATE             |   LEVEL |  CHANGE
+------------------------------------
+2026-11-01 11:00 |     700 |       -
+2026-11-03 10:00 |     703 |      +3
+====================================
+```
+
+- `log` lists every match of the current month, oldest first: full matches and `<n>k` / `<n>w`. The entries logged by `account` and `base` updates, and level updates, are left out.
+- `logl` lists every recorded level, oldest first, with the change from the row before. Earlier months come from the current file's header, which keeps the highest level of each day over the last year; this month's level updates are listed one by one.
+- Both read only the current month's file.
 
 ### `--dir`: custom data folder
 
@@ -619,7 +687,9 @@ Each monthly file has three sections:
    - the highest level reached on each day over the last year.
 
    These carried-forward totals are what let the summaries, `lv` and the level checks work without opening older files.
-2. **Log.** One row per entry: date, legend, kills, wins, level, an entry `ID` and an `ACC` flag. Rows are sorted by date. The `ID` records the order entries were added in, which is what `undo` follows. `ACC` is `1` when the entry's kills and wins were added to your global account totals. `undo` only subtracts from the account totals for those entries, so entries logged before you set the totals never throw them off.
+
+   If you changed a legend base or the account totals this month, the header also has `@BU` lines: one per change, holding the base the legend had before (`-` if it had none). Account changes use `@ACCOUNT` as the legend and hold the account totals from before the change; an account gain's `@BU` line shares the `ID` of its log entry. They are what lets `undo` revert base and account changes exactly.
+2. **Log.** One row per entry: date, legend, kills, wins, level, an entry `ID`, an `ACC` flag and a `SRC` code. Rows are sorted by date. The `ID` records the order entries were added in, which is what `undo` follows. `ACC` is `1` when the entry's kills and wins were added to your global account totals. `undo` only subtracts from the account totals for those entries, so entries logged before you set the totals never throw them off. `SRC` says where the entry came from: `M` a match (including `<n>k` / `<n>w`), `A` an `account` update, `B` a `base` update, `L` a level update. `log` shows only `M` entries.
 3. **Summary.** The `report` table, recalculated every time the file is saved.
 
 Example excerpt:
@@ -633,20 +703,22 @@ Example excerpt:
 ...
 @LV     | 2026-10-28    |     690
 ...
-# LOG   | DATE             | LEGEND       | KILLS |  WINS |  LEVEL |   ID | ACC
+# LOG   | DATE             | LEGEND       | KILLS |  WINS |  LEVEL |   ID | ACC | SRC
 -------------------------------------------------------------------------
-L       | 2026-11-06 22:30 | Wraith       |     5 |     1 |    694 |    1 |   1
+L       | 2026-11-06 22:30 | Wraith       |     5 |     1 |      0 |    1 |   1 |   M
+L       | 2026-11-06 22:41 | -            |     0 |     0 |    694 |    2 |   0 |   L
 ```
 
 The header lines still store an internal `LOGS` count of entries per period, to stay compatible with existing data files. It is never shown in the report tables.
 
-The tag at the start of each line (`@FILE`, `@HIST`, `@PREV`, `@HL`, `@PL`, `@LV`, `L`) tells the script what the line holds, so a file can be read in one quick pass. If you edit a file by hand, keep the tags, the `|` separators and the column order. Inside the file, the kills column comes before the wins column, the same order you type them in.
+The tag at the start of each line (`@FILE`, `@HIST`, `@PREV`, `@HL`, `@PL`, `@LV`, `@BU`, `L`) tells the script what the line holds, so a file can be read in one quick pass. If you edit a file by hand, keep the tags, the `|` separators and the column order. Inside the file, the kills column comes before the wins column, the same order you type them in.
 
 Files from earlier versions of the script still load:
 
 - Entries with no level column count as "level not recorded".
 - Entries with no `ID` column are numbered in the order they appear in the file.
 - Entries with no `ACC` column count as not added to the account totals.
+- Entries with no `SRC` column count as level updates if they have only a level, and as matches otherwise. Older entries that came from `account` or `base` updates can't be told apart, so they appear in `log`.
 - The file is rewritten in the current format the next time it is saved.
 
 ---

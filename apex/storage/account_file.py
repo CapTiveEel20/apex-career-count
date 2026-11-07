@@ -77,12 +77,29 @@ def bump_account(d, kills, wins):
     return save_account(d, max(0, acc[0] + kills), max(0, acc[1] + wins))
 
 
+def restore_account(d, old):
+    """Put back the previous global account totals exactly (old = (kills, wins, updated), None =
+    never set), keeping the legend bases. Used by undo for account changes (1 read + 1 atomic write)."""
+    write_acct(d, old, load_acct(d)[1])
+
+
 def save_base(d, legend, kills, wins, acct=None):
     """Store (or, with 0 0, remove) a legend's base, keeping the account totals.
     acct = (account, bases) already loaded by the caller, so the file is not read twice."""
     acc, bases = acct or load_acct(d)
     if kills or wins:
         bases[legend] = (kills, wins, f"{datetime.now():{DFMT}}")
+    else:
+        bases.pop(legend, None)
+    write_acct(d, acc, bases)
+
+
+def restore_base(d, legend, old):
+    """Put back a legend's previous base (old = (kills, wins, updated), None = it had none).
+    Used by undo for a base change (1 read + 1 atomic write)."""
+    acc, bases = load_acct(d)
+    if old:
+        bases[legend] = old
     else:
         bases.pop(legend, None)
     write_acct(d, acc, bases)

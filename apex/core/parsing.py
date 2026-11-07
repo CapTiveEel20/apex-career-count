@@ -1,4 +1,4 @@
-"""User-input parsing: number/level/quick tokens, legend names, [legend] [level], dates."""
+"""User-input parsing: number/level/quick tokens, legend names, the [legend] of a match, dates."""
 import re
 from datetime import datetime
 
@@ -7,7 +7,7 @@ from apex.config import DAY_FMT, DFMT, NO_LEGEND
 NUM_RE = re.compile(r"^-?(?:\d{1,3}(?:,\d{3})+|\d+)$")  # kills/wins: "15000" or "15,000"
 QUICK_RE = re.compile(r"^\+?(\d+)([kwl])$", re.IGNORECASE)  # quick-add: "5k" kills only, "1w" wins only, "3l" +3 levels
 LEVEL_RE = re.compile(r"^\+?\d+$")  # level-only input: "700" (absolute) or "+5" (relative)
-LVL_TOKEN_RE = re.compile(r"^[+-]?\d+$")  # [level] in a full entry: "700", "+5" (relative) or "-5" (rejected)
+LVL_TOKEN_RE = re.compile(r"^[+-]?\d+$")  # a number where a legend is expected ("57", "+3", "-5"): rejected
 
 
 class InputError(ValueError):
@@ -24,26 +24,24 @@ def clean(s, w):
     return s or NO_LEGEND
 
 
-def level_arg(token):
-    """Level token -> (level, delta): "700" = absolute (700, None); "+3" = relative (0, 3)."""
-    if token.startswith("+"):
-        return 0, int(token)
-    return int(token), None
+def parse_legend(tokens):
+    """[legend] of a match -> the legend (None if omitted). Matches take no level: a number among
+    the tokens ("5 1 57", "5 1 wraith +3") is a ValueError; levels go through <n> / <n>l."""
+    if any(LVL_TOKEN_RE.match(t) for t in tokens):
+        raise ValueError("Error: matches take no level; set it with <n> or <n>l (e.g. 700 or 3l).")
+    return " ".join(tokens) if tokens else None
 
 
-def parse_extra(tokens):
-    """[legend] [level] -> (legend, level, delta). A numeric 3rd value ("700" or "+3") is the level;
-    otherwise it is the legend, and a trailing numeric value is the level. No "+" = absolute level,
-    "+<n>" = last recorded level + n."""
-    if not tokens:
-        return None, 0, None
-    if LVL_TOKEN_RE.match(tokens[0]):
-        if len(tokens) > 1:
-            raise ValueError("Error: nothing may follow the level.")
-        return (None,) + level_arg(tokens[0])
-    if len(tokens) > 1 and LVL_TOKEN_RE.match(tokens[-1]):
-        return (" ".join(tokens[:-1]),) + level_arg(tokens[-1])
-    return " ".join(tokens), 0, None
+def parse_match(tokens):
+    """A match -> (kills, wins, legend or None). Two forms:
+    - '<kills> <wins> [legend]': two numbers are always kills and wins (no win added);
+    - '<kills> <legend>': one number followed by the legend counts as 1 win (e.g. '5 wraith').
+    InputError if it is neither; ValueError (from parse_legend) for a level among the legend tokens."""
+    if len(tokens) < 2 or not NUM_RE.match(tokens[0]):
+        raise InputError()
+    if NUM_RE.match(tokens[1]):
+        return to_int(tokens[0]), to_int(tokens[1]), parse_legend(tokens[2:])
+    return to_int(tokens[0]), 1, parse_legend(tokens[1:])  # "5 +3" is still rejected as a level
 
 
 def parse_when(when):

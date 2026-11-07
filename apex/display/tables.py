@@ -3,7 +3,7 @@ from datetime import datetime
 
 from apex.config import AGG, DFMT, FOOTER_MARK, LEG_W, REF_W, REP
 from apex.core.aggregates import log_agg, periods
-from apex.display.colors import green, paint, red
+from apex.display.colors import green, paint, red, visible_len
 
 
 def num(v, w=0, sep=True):
@@ -30,6 +30,14 @@ REP_NAMES = [n for n, _ in REP]
 SUM_HEAD = f"{'REFERENCE':<{REF_W}} | " + vals_cells(REP_NAMES, REP)
 LREP_HEAD = f"{'# LEGEND':<{LEG_W}} | " + vals_cells(REP_NAMES, REP)
 PERIOD_LABELS = ("MONTH {}", "SEMIANNUAL", "ANNUAL", "ALL-TIME")
+
+
+def side_by_side(left, right, gap=4):
+    """Two blocks of lines next to each other; the left one is padded to its widest line."""
+    w = max((visible_len(x) for x in left), default=0)
+    n = max(len(left), len(right))
+    left, right = left + [""] * (n - len(left)), right + [""] * (n - len(right))
+    return [x + " " * (w - visible_len(x) + gap) + y if y else x for x, y in zip(left, right)]
 
 
 def summary(month, hist, prev, logs, color=None, sep=True):

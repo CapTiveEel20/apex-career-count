@@ -43,6 +43,14 @@ def legend_agg(logs):
     return d
 
 
+def legend_totals(hl, logs):
+    """{legend: [logs, kills, wins]} logged all-time: the carried @HL totals + the file's entries."""
+    out = {leg: list(t) for leg, t in hl.items()}
+    for leg, t in legend_agg(logs).items():
+        out[leg] = vadd(out.get(leg, zero()), t)
+    return out
+
+
 def day_levels(logs):
     """day -> highest level recorded that day (level 0 = not recorded)."""
     d = {}

@@ -1,6 +1,11 @@
 """Account-level rules: levels never decrease; @LV pruning keeps one baseline day (no I/O)."""
 
 
+def latest_level(logs, lv):
+    """Current account level: the latest (= highest, levels never decrease) recorded; 0 if none."""
+    return max([n for _, n in lv] + [r[4] for r in logs], default=0)
+
+
 def last_level(stamp, logs, lv):
     """Last (= highest) level recorded at or before stamp; 0 if none."""
     before = [n for _, n in lv] + [r[4] for r in logs if r[4] and r[0] <= stamp]

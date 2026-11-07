@@ -2,7 +2,7 @@
 from datetime import datetime
 
 from apex.config import NO_LEGEND
-from apex.core.parsing import LEVEL_RE, NUM_RE, QUICK_RE, InputError, parse_day, parse_extra, to_int
+from apex.core.parsing import LEVEL_RE, QUICK_RE, InputError, parse_day, parse_match
 from apex.display.colors import paint
 from apex.display.messages import fmt_saved
 from apex.services.account import account_cmd
@@ -15,9 +15,10 @@ from apex.ui.reports import VIEWS
 def interactive(d):
     print(quick_guide(), end="")
     day = None  # None = system date
-    sticky = None  # sticky legend: last legend typed, reused by matches and account entries that omit it
+    pin = False  # sticky legend mode, OFF by default; 'p' toggles it, '-' turns it OFF
+    sticky = None  # pinned legend (mode ON only): reused by matches without a legend and by <n>k / <n>w
     while True:
-        tags = [t for t in (day, sticky) if t]
+        tags = [t for t in (day, sticky or ("sticky ON" if pin else None)) if t]
         try:
             line = input(f"[{' | '.join(tags)}]> " if tags else "> ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -32,7 +33,7 @@ def interactive(d):
             if cmd in VIEWS:
                 print(VIEWS[cmd](d), end="")
                 continue
-            if cmd == "undo":
+            if cmd in ("undo", "duno"):  # duno: hidden alias of undo (not shown in any menu)
                 print(undo(d), end="")
                 continue
             if cmd == "c":
@@ -47,33 +48,40 @@ def interactive(d):
                     raise InputError() from None
                 print(f"  Active date: {day or 'today (system)'}")
                 continue
+            if cmd == "p":  # toggle sticky legend mode; turning it OFF also unpins the legend
+                pin, sticky = not pin, None
+                print("  Sticky legend ON: the next legend you type is pinned." if pin else
+                      "  Sticky legend OFF: entries without a legend are saved with no legend.")
+                continue
+            if cmd == NO_LEGEND:  # "-" alone: unpin the legend and turn the mode OFF, nothing is saved
+                pin, sticky = False, None
+                print("  Sticky legend cleared and OFF: entries without a legend are saved with no legend.")
+                continue
             when = f"{day} {datetime.now():%H:%M}" if day else None
             if head == "base":  # list / first time: set a legend's all-time totals / later: log the gain
                 print(base_cmd(d, parts[1:], when), end="")
                 continue
-            if head == "account":  # show / first set / log the gain (new - saved) as a match
-                text, rec, typed = account_cmd(d, parts[1:], when, sticky)
-                print(text, end="")
-                if rec and typed is not None:
-                    sticky = rec[1] if rec[1] != NO_LEGEND else None
+            if head == "account":  # kills and wins only: show / first set / log the gain (no legend)
+                print(account_cmd(d, parts[1:], when), end="")
                 continue
             if len(parts) == 1 and (LEVEL_RE.match(parts[0]) or QUICK_RE.match(parts[0])):
-                _, _, _, rec = save_quick(d, parts[0], when)  # 700, 3l, +3, 5k, 1w (never a legend)
-            else:  # anything else must be a match: <kills> <wins> [legend] [level]
-                if len(parts) < 2 or not (NUM_RE.match(parts[0]) and NUM_RE.match(parts[1])):
-                    raise InputError()
+                # 700, 3l, +3 (never a legend); 5k, 1w take the pinned legend, if any
+                _, _, level, rec = save_quick(d, parts[0], when, sticky)
+            else:  # anything else must be a match: <kills> <wins> [legend] or <kills> <legend> (1 win)
                 try:
-                    typed, level, delta = parse_extra(parts[2:])
+                    kills, wins, typed = parse_match(parts)
                 except ValueError:
                     raise InputError() from None
                 legend = typed if typed is not None else sticky
-                _, _, _, rec = save_log(d, to_int(parts[0]), to_int(parts[1]), legend, when, level, delta)
-                if typed is not None:  # a typed legend replaces the sticky one ("-" clears it)
-                    sticky = rec[1] if rec[1] != NO_LEGEND else None
+                _, _, level, rec = save_log(d, kills, wins, legend, when)
+                if typed is not None and rec[1] == NO_LEGEND:  # a typed "-": unpin, mode OFF
+                    pin, sticky = False, None
+                elif typed is not None and pin:  # mode ON: the typed legend is pinned
+                    sticky = rec[1]
         except InputError:
             print(quick_guide(), end="")
             continue
         except ValueError as e:
             print(paint(str(e)))
             continue
-        print(fmt_saved(rec))
+        print(fmt_saved(rec, level))

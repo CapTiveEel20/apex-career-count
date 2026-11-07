@@ -1,16 +1,18 @@
-"""Raw ANSI colors (no external libraries): kills red, wins green.
+"""Raw ANSI colors (no external libraries): kills red, wins green, levels orange.
 
-COLOR is module state set once by setup(). Read it only inside this module (red, green, paint,
-color_quick); never copy it with `from apex.display.colors import COLOR`.
+COLOR is module state set once by setup(). Read it only inside this module (red, green, orange,
+paint, color_quick); never copy it with `from apex.display.colors import COLOR`.
 """
 import os
 import re
 import sys
 
-RED, GREEN, RESET = "\033[91m", "\033[92m", "\033[0m"
+RED, GREEN, ORANGE, RESET = "\033[91m", "\033[92m", "\033[38;5;208m", "\033[0m"
 COLOR = False
 KW_RE = re.compile(r"[<\[]?\b(?:(kills?)|(wins?))\b[>\]]?(?:\s+\d(?:[\d,]*\d)?)?", re.IGNORECASE)
+LAST_LEVEL_RE = re.compile(r"(?<=last recorded level \()\d[\d,]*(?=\))")  # (Y) of the check_level error
 QUICK_TXT_RE = re.compile(r"(?<![\w+<])\+?(?:<n>|\d+)([kw])\b")  # <n>k / 5k (red), <n>w / 1w (green)
+ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 
 
 def init_color():
@@ -50,12 +52,23 @@ def green(s, color=None):
     return f"{GREEN}{s}{RESET}" if _on(color) else str(s)
 
 
+def orange(s, color=None):
+    return f"{ORANGE}{s}{RESET}" if _on(color) else str(s)
+
+
 def paint(text, color=None):
     """Color kill words (kills, <kills>, KILLS 12) red and win words (wins, [wins], WINS 3) green.
+    Level words stay plain; only the (Y) of "lower than the last recorded level (Y)" turns orange.
     Used for prose and table headers; table values are colored cell by cell."""
     if not _on(color):
         return text
-    return KW_RE.sub(lambda m: red(m.group(0), True) if m.group(1) else green(m.group(0), True), text)
+    text = KW_RE.sub(lambda m: red(m.group(0), True) if m.group(1) else green(m.group(0), True), text)
+    return LAST_LEVEL_RE.sub(lambda m: orange(m.group(0), True), text)
+
+
+def visible_len(s):
+    """Length of s as shown on the terminal (ANSI color codes take no space)."""
+    return len(ANSI_RE.sub("", s))
 
 
 def color_quick(text):

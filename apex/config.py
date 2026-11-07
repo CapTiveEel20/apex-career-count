@@ -19,4 +19,6 @@ AGG = (("LOGS", 6), ("KILLS", 8), ("WINS", 8))  # stored in header lines (LOGS k
 REP = AGG[1:]  # columns shown in report tables: KILLS, WINS (no LOGS)
 NA = len(AGG)
 TAG_W, REF_W, LEG_W = 7, 13, 12
-# Log record: (date, legend, kills, wins, level, id, acc)  acc = 1 if added to the account totals
+# Log record: (date, legend, kills, wins, level, id, acc, src)  acc = 1 if added to the account totals
+# src = where the entry came from (SRC column): a match, an account update, a base update or a level update
+SRC_MATCH, SRC_ACCOUNT, SRC_BASE, SRC_LEVEL = "M", "A", "B", "L"
