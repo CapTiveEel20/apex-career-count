@@ -2,7 +2,7 @@
 
 A lightweight command-line tracker for your **Apex Legends** sessions. Log wins, kills and your account level, optionally tagged by legend, and get monthly, semiannual, annual and all-time summaries, plus how many levels you gained over rolling time windows. Everything is stored in plain, human-readable `.txt` files on your own machine.
 
-- Single file: `apex_stats.py`
+- Run it with `apex_stats.py`; the code lives in the small `apex/` package next to it
 - Zero dependencies: Python standard library only
 - Your data never leaves your computer
 
@@ -648,6 +648,26 @@ Files from earlier versions of the script still load:
 - Entries with no `ID` column are numbered in the order they appear in the file.
 - Entries with no `ACC` column count as not added to the account totals.
 - The file is rewritten in the current format the next time it is saved.
+
+---
+
+## Project structure
+
+```
+apex_stats.py          ← entry point: python apex_stats.py ... (or python -m apex ...)
+apex/
+├── config.py          ← constants: file names, tags, date formats, column widths
+├── cli.py             ← command-line commands and options
+├── core/              ← pure logic: input parsing, totals per period and legend, level rules
+├── display/           ← colors, table formatting, summary table, short messages
+├── storage/           ← monthly data files and account_stats.txt (always written atomically)
+├── services/          ← saving entries, undo, account and base updates
+└── ui/                ← reports, quick guide and cheat sheet, interactive mode
+```
+
+Each layer only uses the ones above it in this order: `config`, `core`, `display`, `storage`, `services`, `ui`, `cli`.
+
+To build a standalone executable with PyInstaller, run `pyinstaller --onefile apex_stats.py`. The executable keeps its `apex_data/` folder next to itself.
 
 ---
 

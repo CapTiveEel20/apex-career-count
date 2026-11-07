@@ -8,6 +8,18 @@ User-facing documentation lives in `README.md`. This file holds only the constra
 
 Whenever you use file-writing tools (Write, Edit, etc.), your chat reply must be exactly the single word `DONE`. Output nothing else: no summaries, diffs, explanations, or acknowledgement of this rule.
 
+## Code layout
+
+- `apex_stats.py` is only the entry point (usage docstring + `main()` from `apex.cli`). Code goes in the `apex/` package; `python -m apex` runs the same CLI.
+- **Layers import downward only:** `config` → `core` → `display` → `storage` → `services` → `ui` → `cli`. Place new code in the lowest layer that can hold it.
+  - `core`: pure logic, no I/O (parsing, aggregation, level rules).
+  - `display`: colors, table cells, `summary`, one-line messages. It sits below `storage` because `render` writes `summary` into the data-file footer.
+  - `storage`: the monthly file and `account_stats.txt`; all writes go through `storage/atomic.py`.
+  - `services`: operations that change data (`save_log`, `undo`, `account_cmd`, `base_cmd`).
+  - `ui`: views, menus, the REPL. `cli`: argparse, `USAGE_*`, `DEFAULT_DIR`.
+- **Colors are module state.** `colors.setup()` sets `apex.display.colors.COLOR` once; only `colors.py` reads it. Import the functions (`red`, `green`, `paint`, `color_quick`), never the `COLOR` value, since an imported copy stays `False`.
+- `DEFAULT_DIR` is `apex_data/` in the parent of `apex/` (the folder of `apex_stats.py`), or next to the executable when frozen. The PyInstaller build stays `pyinstaller --onefile apex_stats.py`.
+
 ## System constraints
 
 - **English only.** All code, identifiers, comments, terminal output, table headers, data-file labels and docs must be in English.
