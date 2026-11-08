@@ -1,21 +1,22 @@
-"""Monthly data file (apex_stats_YYYY-MM.txt): render, load, locate, roll over and write a month.
+"""Monthly data file (apex_stats_YYYY-MM.txt): render, parse, locate and roll over a month. Commands
+change these files through the Ledger (storage/ledger.py).
 
 Header lines (@FILE, @HIST, @PREV, @HL, @PL, @LV, @LL, @TK) carry the totals of earlier months forward, so
-only the newest file is ever read. @BU lines are the undo records (Change) of this file's base and
+only the newest file is read ('report' alone also reads the older months, for its day windows and first level). @BU lines are the undo records (Change) of this file's base and
 account changes (target @ACCOUNT = the global account totals before the change).
-load() dispatches on the first column and stops at the footer.
+parse() dispatches on the first column and stops at the footer. A line it cannot read is skipped, and
+kept in the file as @BAD so that a later save does not lose it.
 """
 import os
+import sys
 from datetime import timedelta
 
 from apex.config import (AGG, DAY_FMT, FNAME, FOOTER_MARK, FRE, LEG_W, LV_KEEP_DAYS, REF_W, SRC_LEVEL, SRC_MATCH,
                          TAG_W, YEAR_MONTHS)
-from apex.core.aggregates import (day_levels, ints, last_logged, legend_agg, log_agg, midx, top_matches, vadd,
-                                  zero)
+from apex.core.aggregates import day_levels, ints, last_logged, legend_agg, legend_totals, log_agg, midx, top_matches
 from apex.core.levels import prune_lv
-from apex.core.records import Change, Entry, Month
+from apex.core.records import Change, Entry, LevelDay, Month, Stored, TopMatch
 from apex.display.tables import SUM_HEAD, summary, vals_cells
-from apex.storage.atomic import write_atomic
 
 
 def row(tag, ref, vals):
@@ -93,6 +94,9 @@ def render(month, m):
         out += ["", "# @BU = base / @ACCOUNT changes of this month (undo puts the OLD values back; - = none)",
                 BU_HEAD, dash]
         out += [bu_row(c) for c in m.changes]
+    if m.damaged:  # only files with lines that could not be read have this section
+        out += ["", "# @BAD = damaged lines, skipped when reading; fix or delete them by hand"]
+        out += [f"{'@BAD':<{TAG_W}} | {line}" for line in m.damaged]
     out += ["", eq, LOG_HEAD, dash]
     out += [log_row(e) for e in m.logs]
     out += ["", eq, summary(month, m.hist, m.prev, m.logs, color=False, sep=False)]  # data files: plain
@@ -114,17 +118,18 @@ def _entry(c, n):
     return Entry(c[1].strip(), c[2].strip(), kills, wins, lvl, lid, acc, src)
 
 
-def load(path):
-    """The Month held by one monthly file."""
+def parse(text):
+    """The Month held by the text of one monthly file."""
     m = Month.empty()
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            c = line.split("|")
-            k = c[0].strip()
+    hist = m.hist
+    for line in text.split("\n"):
+        c = line.split("|")
+        k = c[0].strip()
+        try:
             if k == "L":
                 m.logs.append(_entry(c, len(m.logs)))
             elif k == "@HIST":
-                m.hist[:] = ints(c[2:])
+                hist = ints(c[2:])
             elif k == "@PREV":
                 m.prev.append((c[1].strip(), ints(c[2:])))
             elif k == "@HL":
@@ -132,16 +137,36 @@ def load(path):
             elif k == "@PL":
                 m.pl.append((c[1].strip(), c[2].strip(), ints(c[3:])))
             elif k == "@LV":
-                m.lv.append((c[1].strip(), int(c[2])))
+                m.lv.append(LevelDay(c[1].strip(), int(c[2])))
             elif k == "@LL":
                 m.ll[c[1].strip()] = c[2].strip()
             elif k == "@TK":
-                m.top.append((c[1].strip(), c[2].strip(), int(c[3]), int(c[4])))
+                m.top.append(TopMatch(c[1].strip(), c[2].strip(), int(c[3]), int(c[4])))
             elif k == "@BU":
-                old = None if c[4].strip() == "-" else (int(c[4]), int(c[5]), c[6].strip())
+                old = None if c[4].strip() == "-" else Stored(int(c[4]), int(c[5]), c[6].strip())
                 m.changes.append(Change(int(c[1]), c[2].strip(), c[3].strip(), old))
-            elif k == FOOTER_MARK:
+            elif k == "@BAD":
+                m.damaged.append(line.split("|", 1)[1].strip())
+            elif k.startswith(FOOTER_MARK):
                 break  # summary is recomputed: no need to read it
+        except (ValueError, IndexError):
+            m.damaged.append(line.strip())
+    return m._replace(hist=hist)
+
+
+def read_month(path):
+    """(text, Month) of one monthly file; each damaged line gets a warning on stderr."""
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    m = parse(text)
+    for line in m.damaged:
+        print(f"Warning: damaged line skipped in {os.path.basename(path)}: {line}", file=sys.stderr)
+    return text, m
+
+
+def load(path):
+    """The Month held by one monthly file."""
+    _, m = read_month(path)
     return m
 
 
@@ -159,6 +184,12 @@ def current_month(d):
     return best
 
 
+def older_logs(d, cur):
+    """Log entries of every month before cur, oldest first."""
+    months = sorted(m.group(1) for m in map(FRE.match, os.listdir(d)) if m)
+    return [e for month in months if month < cur for e in load(month_path(d, month)).logs]
+
+
 def load_current(d):
     """(month, path, Month) of the newest file (1 read); ValueError if there is none."""
     cur = current_month(d)
@@ -168,55 +199,16 @@ def load_current(d):
     return cur, path, load(path)
 
 
-def write_month(d, month, m):
-    """Write month's file holding m (1 atomic write); returns its path."""
-    path = month_path(d, month)
-    write_atomic(path, render(month, m))
-    return path
-
-
-def save_change(d, month, m, stamp, target, old):
-    """Record an undoable change that logs nothing (a base set, corrected or removed, or the first
-    account save): its Change goes into month's file, written now, before the caller updates
-    account_stats.txt. old = the value being replaced (None = there was none)."""
-    m.changes.append(Change(m.next_id(), stamp, target, old))
-    write_month(d, month, m)
-
-
-def read_month(d, month, any_month=False):
-    """(cur, month, Month) for a record of `month`: cur = newest file ('' if none), Month = its
-    contents (1 read). An older month than cur is closed: ValueError, unless any_month (undated
-    records such as base changes go into cur)."""
-    os.makedirs(d, exist_ok=True)
-    cur = current_month(d)
-    if month < cur:
-        if not any_month:
-            raise ValueError(f"Error: month {month} is already closed (current file: {cur}).")
-        month = cur
-    return cur, month, load(month_path(d, cur)) if cur else Month.empty()
-
-
 def roll_over(cur, month, day, m):
     """Month of the new file `month` (newer than cur): the totals of cur are carried into its
     header, and its log entries and changes start empty. day = date of the new record."""
     ni = midx(month)
     keep = lambda mo: ni - midx(mo) < YEAR_MONTHS
-    hist = vadd(m.hist, log_agg(m.logs))
+    hist = m.hist + log_agg(m.logs)
     prev = [(mo, v) for mo, v in m.prev + [(cur, log_agg(m.logs))] if keep(mo)]
     la = legend_agg(m.logs)
-    hl = dict(m.hl)
-    for leg, t in la.items():
-        hl[leg] = vadd(hl.get(leg, zero()), t)
-    pl = [x for x in m.pl + [(cur, leg, la[leg]) for leg in sorted(la)] if keep(x[0])]
+    hl = legend_totals(m.hl, m.logs)
+    pl = [(mo, leg, t) for mo, leg, t in m.pl + [(cur, leg, la[leg]) for leg in sorted(la)] if keep(mo)]
     cutoff = (day - timedelta(days=LV_KEEP_DAYS)).strftime(DAY_FMT)
-    lv = prune_lv(m.lv + sorted(day_levels(m.logs).items()), cutoff)
-    return Month(hist, prev, [], hl, pl, lv, [], last_logged(m.ll, m.logs), top_matches(m.top, m.logs))
-
-
-def open_month(d, dt, any_month=False):
-    """(month, Month) of the file a record dated dt goes into, rolled over if it is a new month
-    (nothing is written here)."""
-    cur, month, m = read_month(d, dt.strftime("%Y-%m"), any_month)
-    if cur and month > cur:
-        m = roll_over(cur, month, dt.date(), m)
-    return month, m
+    lv = prune_lv(m.lv + [LevelDay(*x) for x in sorted(day_levels(m.logs).items())], cutoff)
+    return Month(hist, prev, [], hl, pl, lv, [], last_logged(m.ll, m.logs), top_matches(m.top, m.logs), [])

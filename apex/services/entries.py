@@ -1,125 +1,106 @@
-"""The single save path (save_log) and its wrappers, plus the LIFO undo."""
-import os
+"""The two save paths (record_gain: kills/wins; record_level: account level), the single-entry
+commands built on them (save_match, save_quick) and the LIFO undo."""
+from typing import NamedTuple, Optional
 
-from apex.config import ACC_TAG, DFMT, LEG_W, NO_LEGEND, SRC_ACCOUNT, SRC_LEVEL, SRC_MATCH
-from apex.core.aggregates import legend_totals, zero
-from apex.core.levels import check_level, last_level, latest_level
-from apex.core.parsing import QUICK_RE, clean, parse_when
-from apex.core.records import Change, Entry
+from apex.config import LEG_W, NO_LEGEND, SRC_LEVEL, SRC_MATCH
+from apex.core.aggregates import legend_totals
+from apex.core.levels import check_later, last_level
+from apex.core.parsing import QUICK_RE, clean
+from apex.core.records import Entry, MatchTotals, Stored, Tally
 from apex.display.messages import fmt_undo, logs_word
 from apex.display.tables import summary
-from apex.storage.account_file import bump_account, load_acct, load_account, put_base, restore_account, save_account
-from apex.storage.monthly_file import current_month, load, load_current, month_path, open_month, write_month
+from apex.storage.ledger import Ledger
+from apex.storage.monthly_file import current_month
 
 
-def _match_totals(d, rec, m):
-    """All-time totals after a saved match, for fmt_totals: (legend or None, legend (kills, wins),
-    account (kills, wins) or None). Legend = base + logged; m = the month already loaded and updated."""
-    acc, bases = load_acct(d)
-    legend, lt = None, None
-    if rec.legend != NO_LEGEND:
-        t = legend_totals(m.hl, m.logs).get(rec.legend, zero())
-        b = bases.get(rec.legend, (0, 0))
-        legend, lt = rec.legend, (b[0] + t[1], b[1] + t[2])
-    return legend, lt, acc[:2] if acc else None
+class Saved(NamedTuple):
+    """A saved match or quick entry: its Entry, the current account level, the all-time totals
+    (see _match_totals; None for a level update) and the month summary."""
+    entry: Entry
+    level: int
+    totals: Optional[MatchTotals]
+    summary: str
 
 
-def save_log(d, kills, wins, legend=None, when=None, level=0, delta=None, account=None, source=SRC_MATCH,
-             confirm=None):
-    """Save one log entry (1 read + 1 atomic write). Errors -> ValueError.
-    level = absolute level (0 = not recorded); delta (from "<n>l") = last level recorded
-    before the entry's date + delta. Either way the level check runs. Only level updates
-    (accountl, <n>l) pass a level: matches never carry one.
-    confirm = asked before an absolute level goes down (None = a lower level is an error).
-    account = account totals already loaded by the caller (account_cmd), so they are not read twice.
-    source = SRC code of the entry (match, account update, base update, level update).
-    Returns (path, summary, current account level after the save, Entry, totals), where totals
-    = the all-time totals after a match (_match_totals), None for any other source."""
-    if kills < 0 or wins < 0 or level < 0:
+def _saved(ledger, entry, totals=None):
+    m = ledger.current
+    return Saved(entry, ledger.level(), totals, summary(ledger.month, m.hist, m.prev, m.logs))
+
+
+def _match_totals(ledger, rec):
+    """All-time totals after a saved match, for fmt_totals. Legend totals = base + logged."""
+    if rec.legend == NO_LEGEND:
+        return MatchTotals(None, None, ledger.account)
+    m = ledger.current
+    logged = legend_totals(m.hl, m.logs).get(rec.legend, Tally())
+    return MatchTotals(rec.legend, logged + ledger.bases.get(rec.legend, Stored(0, 0, "")).tally, ledger.account)
+
+
+def record_gain(ledger, kills, wins, legend=None, source=SRC_MATCH):
+    """Add one entry of kills/wins to the ledger and return it. source = where it came from:
+    a match, an account gain or a base gain."""
+    if kills < 0 or wins < 0:
         raise ValueError("Error: kills, wins and level cannot be negative.")
-    if delta is not None and delta < 1:
-        raise ValueError("Error: an <n>l level increment must be 1 or higher.")
-    dt = parse_when(when)
-    stamp = dt.strftime(DFMT)
-    month, m = open_month(d, dt)  # a new month starts with the old totals and levels carried over
-    if delta is not None:
-        base = last_level(stamp, m.logs, m.lv)
-        if not base:
-            raise ValueError("Error: no level recorded yet; set it first with accountl <n> (e.g. accountl 700).")
-        level = base + delta
-    check_level(level, stamp, m.logs, m.lv, confirm)
-
-    acc = (account or load_account(d)) if (kills or wins) else None  # totals to bump (None = unset / nothing to add)
-    rec = Entry(stamp, clean(legend, LEG_W), kills, wins, level, m.next_id(), 1 if acc else 0, source)
-    m.logs.append(rec)
-    m.logs.sort(key=lambda e: (e.date, e.id))
-    if source == SRC_ACCOUNT and acc:  # snapshot of the totals before the gain, same ID: undo restores it exactly
-        m.changes.append(Change(rec.id, stamp, ACC_TAG, tuple(acc)))
-    path = write_month(d, month, m)
-    if acc:  # keep the global account totals in step with the logs (after the monthly file)
-        save_account(d, acc[0] + kills, acc[1] + wins)
-    totals = _match_totals(d, rec, m) if source == SRC_MATCH else None
-    return path, summary(month, m.hist, m.prev, m.logs), latest_level(m.logs, m.lv), rec, totals
+    stamp = ledger.stamp
+    m = ledger.open_month()  # a new month starts with the old totals and levels carried over
+    acc = 1 if (kills or wins) and ledger.account else 0  # 1 = its kills/wins move the account totals
+    rec = Entry(stamp, clean(legend, LEG_W), kills, wins, 0, m.next_id(), acc, source)
+    ledger.add(rec)
+    return rec
 
 
-def current_level(d):
-    """Current account level from the current monthly file (one read); 0 if nothing recorded yet."""
-    cur = current_month(d)
-    if not cur:
-        return 0
-    m = load(month_path(d, cur))
-    return latest_level(m.logs, m.lv)
+def record_level(ledger, level):
+    """Add one level update (the absolute level, 1 or higher) to the ledger and return it.
+    The caller has already had any lowering confirmed."""
+    stamp = ledger.stamp
+    m = ledger.open_month()
+    check_later(level, stamp, m.logs)
+    rec = Entry(stamp, NO_LEGEND, 0, 0, level, m.next_id(), 0, SRC_LEVEL)
+    ledger.add(rec)
+    return rec
 
 
-def _rewrite(d, cur, path, m):
-    """Write the month file back after an undo, or delete it once it holds nothing, so the
-    previous month (left untouched at rollover) becomes current again. Returns the note."""
-    if m.logs or m.changes:
-        write_month(d, cur, m)
-        return f"{logs_word(len(m.logs))} left in {cur}"
-    os.remove(path)
-    return f"{cur} is now empty, file removed; current month: {current_month(d) or 'none'}"
+def save_match(d, kills, wins, legend=None, when=None):
+    """Save one match on its own. Returns Saved."""
+    with Ledger(d, when) as ledger:
+        rec = record_gain(ledger, kills, wins, legend)
+        return _saved(ledger, rec, _match_totals(ledger, rec))
 
 
 def undo(d):
-    """Revert the most recent action (LIFO): every record of the file with the highest ID.
-    That is one log entry, one Change (a base change, the first account save or a confirmed
-    lowering of the account totals), or both: an
-    account gain's entry and the snapshot of the totals before it, which share an ID.
-    Each record is reverted on its own terms: a Change puts back the value it replaced; an entry
-    takes its kills/wins back out of the account totals, unless a Change already restored them.
-    The month file is written first, then account_stats.txt. Returns the text to print, which ends
-    with the PREVIOUS LOG: the action that is now the most recent (the next undo would revert it)."""
-    cur, path, m = load_current(d)
-    entry, change = m.last_action()
-    if not (entry or change):
-        raise ValueError("Nothing to undo.")
-    if entry:
-        m.logs.remove(entry)
-    if change:
-        m.changes.remove(change)
-    note = _rewrite(d, cur, path, m)
-    if change and change.is_account:
-        restore_account(d, change.old)
-    elif change:
-        put_base(d, change.target, change.old)
-    if entry and entry.acc and not (change and change.is_account):
-        bump_account(d, -entry.kills, -entry.wins)
+    """Revert the most recent action (LIFO): one log entry, one Change (a base change, the first
+    account save or a confirmed lowering of the account totals), or both: an account gain's entry
+    and the snapshot of the totals before it, which share an ID (see Ledger.revert_last).
+    Returns the text to print, which ends with the PREVIOUS LOG: the action that is now the most
+    recent (the next undo would revert it)."""
+    with Ledger(d) as ledger:
+        entry, change = ledger.revert_last()
+    cur, m = ledger.month, ledger.current
+    if m.has_records:
+        note = f"{logs_word(len(m.logs))} left in {cur}"
+    else:
+        note = f"{cur} is now empty, file removed; current month: {current_month(d) or 'none'}"
     logged = None
     if change and not change.is_account:  # the legend's logged kills/wins, shown with its restored base
-        t = legend_totals(m.hl, m.logs).get(change.target, zero())
-        logged = (t[1], t[2])
+        logged = legend_totals(m.hl, m.logs).get(change.target, Tally())
     return fmt_undo(note, m.last_action(), entry, change, logged)
 
 
 def save_quick(d, token, when=None, legend=None):
     """Quick entries (token already checked by parse_quick): "<n>l" = n more levels, "<n>k" = n kills
     only, "<n>w" = n wins only. Only quick kills/wins take legend (the REPL's pinned sticky legend);
-    level updates never carry one."""
-    m = QUICK_RE.match(token)
-    n, kind = int(m.group(1)), m.group(2).lower()
+    level updates never carry one. Returns Saved."""
+    match = QUICK_RE.match(token)
+    n, kind = int(match.group(1)), match.group(2).lower()
     if n < 1:
         raise ValueError("Error: <n>k, <n>w and <n>l need n of 1 or higher.")
-    if kind == "l":
-        return save_log(d, 0, 0, None, when, 0, delta=n, source=SRC_LEVEL)
-    return save_log(d, n, 0, legend, when) if kind == "k" else save_log(d, 0, n, legend, when)
+    if kind == "k":
+        return save_match(d, n, 0, legend, when)
+    if kind == "w":
+        return save_match(d, 0, n, legend, when)
+    with Ledger(d, when) as ledger:
+        m = ledger.open_month()
+        last = last_level(ledger.stamp, m.logs, m.lv)
+        if not last:
+            raise ValueError("Error: no level recorded yet; set it first with accountl <n> (e.g. accountl 700).")
+        return _saved(ledger, record_level(ledger, last + n))

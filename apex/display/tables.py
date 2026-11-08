@@ -19,7 +19,7 @@ def vals_cells(vals, cols=AGG):
 def rep_cells(t, color=None, sep=True):
     """Report columns only (KILLS red, WINS green): the stored LOGS count is never shown."""
     (_, kw), (_, ww) = REP
-    return f"{red(num(t[1], kw, sep), color)} | {green(num(t[2], ww, sep), color)}"
+    return f"{red(num(t.kills, kw, sep), color)} | {green(num(t.wins, ww, sep), color)}"
 
 
 def sum_row(label, t, color=None, sep=True):

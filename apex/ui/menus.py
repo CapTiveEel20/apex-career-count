@@ -64,7 +64,6 @@ def help_text():
             (f"{c('ls')} <name>", "Same, only legends matching the name"),
             (f"{c('k')} | {c('w')}", "Kills | wins per legend, by period"),
             (c("m"), "This month + top 5 matches ever"),
-            (c("lv"), "Levels gained, by period"),
             (c("log"), "Recent matches and recent levels"))),
         (gray("[ SYSTEM ]"), (
             (c("report"), "Totals, summaries and levels gained"),

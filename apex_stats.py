@@ -13,7 +13,6 @@ Usage:
   python apex_stats.py <n>l [--date ...]   (add n levels)
   python apex_stats.py accountl <n> [--date ...]   (set the absolute level; lower asks y/n)
   python apex_stats.py <n>k | <n>w [legend] [--date ...]   (n kills only / n wins only, optional legend)
-  python apex_stats.py lv       (level report)
   python apex_stats.py k | w    (kills / wins per legend)
   python apex_stats.py log      (recent matches and recent levels, side by side)
   python apex_stats.py undo     (remove the last entry, base or account change)
@@ -29,7 +28,7 @@ Usage:
   python apex_stats.py help     (what each command does)
   python apex_stats.py          (interactive mode: "<kills> [wins] [legend]", "<kills> <legend>", <n>l,
                                  <n>k, <n>w, account [<kills> <wins> [level]], accountl <n>, base <legend> <kills> <wins>,
-                                 report, m, l, lv, k, w, log, undo, help, date YYYY-MM-DD |
+                                 report, m, l, k, w, log, undo, help, date YYYY-MM-DD |
                                  date today, p <name> (lock the sticky legend), - (clear it, sticky OFF);
                                  an empty line quits)
   Sticky legend (interactive mode): OFF by default; "p <name>" locks a legend set with base. It is

@@ -1,30 +1,37 @@
-"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, lv, log (each reads the current
+"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, log (each reads the current
 file once)."""
 from datetime import date, timedelta
+from operator import attrgetter
 
 from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_MATCHES
-from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, months_ago, top_matches
+from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, top_matches
+from apex.core.levels import first_level
+from apex.core.records import LevelDay
 from apex.display.colors import green, orange, paint, red
 from apex.display.messages import account_line
-from apex.display.tables import LREP_HEAD, REP_NAMES, num, rep_cells, side_by_side, summary, vals_cells
+from apex.display.tables import LREP_HEAD, REP_NAMES, num, rep_cells, side_by_side, vals_cells
 from apex.storage.account_file import load_acct, load_account
-from apex.storage.monthly_file import load_current
+from apex.storage.monthly_file import load_current, older_logs
 
+WINDOWS = (("1 WEEK", 7), ("1 MONTH", 30), ("3 MONTHS", 90), ("6 MONTHS", 180), ("1 YEAR", 365))  # days
 TOP_N = 3
 TOP_HEAD = f"{'#':<2} | {'LEGEND':<{LEG_W}} | {'KILLS':>8}"
 LAST_HEAD = LREP_HEAD + f" | {'LAST MATCH':<16}"
 # 'l' left-column orders: (key(row, last), highest first?). k = all-time kills, w = all-time wins,
 # a = by name, m = last match (most recent first; never played = "" = at the bottom). Ties keep name order.
-L_SORTS = {"k": (lambda x, last: x[1][3][1], True), "w": (lambda x, last: x[1][3][2], True),
-           "a": (lambda x, last: x[0].lower(), False), "m": (lambda x, last: last.get(x[0], ""), True)}
+L_SORTS = {"k": (lambda row, last: row.periods.alltime.kills, True),
+           "w": (lambda row, last: row.periods.alltime.wins, True),
+           "a": (lambda row, last: row.legend.lower(), False),
+           "m": (lambda row, last: last.get(row.legend, ""), True)}
 
 
 def top_legends(logs, n=TOP_N):
-    """The n legends with the most kills logged in this file: [(legend, [logs, kills, wins])].
+    """The n legends with the most kills logged in this file: [(legend, Tally)].
     Ties: more wins first, then by name. Legends with no kills this month are left out."""
-    rows = [(leg, t) for leg, t in legend_agg(logs).items() if leg != NO_LEGEND and t[1] > 0]
-    rows.sort(key=lambda x: (-x[1][1], -x[1][2], x[0]))
-    return rows[:n]
+    agg = legend_agg(logs)
+    names = [leg for leg, t in agg.items() if leg != NO_LEGEND and t.kills > 0]
+    names.sort(key=lambda leg: (-agg[leg].kills, -agg[leg].wins, leg))
+    return [(leg, agg[leg]) for leg in names[:n]]
 
 
 def legend_report(month, logs, hl, pl, bases, ll=None, sort="k", search=None):
@@ -35,14 +42,14 @@ def legend_report(month, logs, hl, pl, bases, ll=None, sort="k", search=None):
     Right: the TOP_N legends by kills logged in the current month (never filtered)."""
     dash = "-" * len(LAST_HEAD)
     left = ["# ALL-TIME BY LEGEND  (base + logged)", paint(LAST_HEAD), dash]
-    rows = [(leg, ps) for leg, ps in legend_periods(month, logs, hl, pl, bases) if leg in bases]
+    rows = [row for row in legend_periods(month, logs, hl, pl, bases) if row.legend in bases]
     if search:
-        rows = [x for x in rows if search.lower() in x[0].lower()]
+        rows = [row for row in rows if search.lower() in row.legend.lower()]
     last = last_logged(ll or {}, logs)
     key, desc = L_SORTS[sort]
-    rows.sort(key=lambda x: key(x, last), reverse=desc)  # stable, also when reversed
+    rows.sort(key=lambda row: key(row, last), reverse=desc)  # stable, also when reversed
     for leg, ps in rows:
-        left.append(f"{leg:<{LEG_W}} | " + rep_cells(ps[3]) + f" | {last.get(leg, '-')}")
+        left.append(f"{leg:<{LEG_W}} | " + rep_cells(ps.alltime) + f" | {last.get(leg, '-')}")
     if not rows:
         left.append(f"(no base legend matches '{search[:LEG_W]}')" if search and bases else "(no base legends yet)")
     left.append("=" * len(LAST_HEAD))
@@ -50,7 +57,7 @@ def legend_report(month, logs, hl, pl, bases, ll=None, sort="k", search=None):
     right = [f"# TOP {TOP_N} THIS MONTH  ({month})", paint(TOP_HEAD), tdash]
     top = top_legends(logs)
     for i, (leg, t) in enumerate(top, 1):
-        right.append(f"{i:<2} | {leg:<{LEG_W}} | " + red(num(t[1], 8)))
+        right.append(f"{i:<2} | {leg:<{LEG_W}} | " + red(num(t.kills, 8)))
     if not top:
         right.append("(no kills this month)")
     right.append("=" * len(TOP_HEAD))
@@ -61,21 +68,22 @@ STAT_COLS = (("MONTH", 8), ("SEMIANNUAL", 10), ("ANNUAL", 8), ("ALL-TIME", 8))
 STAT_HEAD = f"{'# LEGEND':<{LEG_W}} | " + vals_cells([n for n, _ in STAT_COLS], STAT_COLS)
 
 
-def stat_report(month, logs, hl, pl, idx, name, bases=None):
-    """One stat (idx 1 = kills, 2 = wins) per legend: monthly, semiannual, annual, all-time
+def stat_report(month, logs, hl, pl, stat, bases=None):
+    """One stat ('kills' or 'wins') per legend: monthly, semiannual, annual, all-time
     (all-time includes the legend's base)."""
     dash = "-" * len(STAT_HEAD)
-    fn = red if idx == 1 else green  # kills red, wins green
+    fn = red if stat == "kills" else green  # kills red, wins green
+    value = attrgetter(stat)
 
     def cells(vals):
         return " | ".join(fn(num(v, w)) for v, (_, w) in zip(vals, STAT_COLS))
 
     head = f"{'# LEGEND':<{LEG_W}} | " + cells([n for n, _ in STAT_COLS])
-    out = [paint(f"# {name} BY LEGEND") + f"  (current month: {month})", head, dash]
+    out = [paint(f"# {stat.upper()} BY LEGEND") + f"  (current month: {month})", head, dash]
     rows = legend_periods(month, logs, hl, pl, bases)
     total = [0] * len(STAT_COLS)
     for leg, ps in rows:
-        vals = [t[idx] for t in ps]
+        vals = [value(t) for t in ps]
         total = [a + b for a, b in zip(total, vals)]
         out.append(f"{leg:<{LEG_W}} | " + cells(vals))
     if rows:  # combined across all legends; ALL-TIME = absolute historical total
@@ -86,37 +94,56 @@ def stat_report(month, logs, hl, pl, idx, name, bases=None):
     return "\n".join(out) + "\n"
 
 
-def lv_report(logs, lv):
+def _from_day(today, days):
+    return (today - timedelta(days=days)).strftime(DAY_FMT)
+
+
+def period_summary(today, logs, alltime):
+    """Left table of 'report' (lines): kills and wins over the same windows as levels_gained (entries
+    after FROM, up to today), then the all-time totals. logs must reach back to the longest window."""
+    end = today.strftime(DAY_FMT)
+    head = f"{'PERIOD':<{REF_W}} | {'FROM':<10} | " + vals_cells(REP_NAMES, REP)
+    out = [f"# SUMMARY  (today: {end})", paint(head), "-" * len(head)]
+    for label, days in WINDOWS:
+        s = _from_day(today, days)
+        out.append(f"{label:<{REF_W}} | {s:<10} | " + rep_cells(log_agg([e for e in logs if s < e.date[:10] <= end])))
+    out += [f"{'ALL-TIME':<{REF_W}} | {'-':<10} | " + rep_cells(alltime), "=" * len(head)]
+    return out
+
+
+def levels_gained(logs, lv, first):
+    """Right table of 'report' (lines): levels gained over each window, then since first (the first
+    level ever recorded; 0 if none)."""
     today = date.today()
     end = today.strftime(DAY_FMT)
     # (day or timestamp, level): carried days + every current-month entry, so gains within a
     # single day are counted too. Sorted by time only: same-minute entries stay in ID order.
-    points = sorted((x for x in lv + [(e.date, e.level) for e in logs if e.level] if x[0][:10] <= end),
-                    key=lambda x: x[0])
-    current = points[-1][1] if points else 0
-    windows = (("1 WEEK", today - timedelta(days=7)), ("1 MONTH", months_ago(today, 1)),
-               ("3 MONTHS", months_ago(today, 3)), ("6 MONTHS", months_ago(today, 6)),
-               ("1 YEAR", months_ago(today, 12)))
+    points = sorted((x for x in lv + [LevelDay(e.date, e.level) for e in logs if e.level] if x.day[:10] <= end),
+                    key=lambda x: x.day)
+    current = points[-1].level if points else 0
     head = f"{'PERIOD':<{REF_W}} | {'FROM':<10} | "
     width = len(head) + 7
     cur_txt = f"{current:,}" if current else "-"
     out = [f"# LEVELS GAINED  (today: {end}, " + orange(f"current level: {cur_txt}") + ")",
            head + " " + orange("GAINED"), "-" * width]
-    for label, start in windows:
-        s = start.strftime(DAY_FMT)
+    for label, days in WINDOWS:
+        s = _from_day(today, days)
         base = [n for k, n in points if k[:10] <= s]
         inside = [n for k, n in points if k[:10] > s]
         gained = current - (base[-1] if base else inside[0]) if points and (base or inside) else 0
         out.append(f"{label:<{REF_W}} | {s:<10} | " + orange(num(gained, 7)))
-    out.append("=" * width)
-    return "\n".join(out) + "\n"
+    out += [f"{'ALL-TIME':<{REF_W}} | {'-':<10} | " + orange(num(current - first if points else 0, 7)), "=" * width]
+    return out
 
 
 def report_text(d):
-    """Match summaries first, then the level report (one read of the current file)."""
+    """Kills and wins per period next to the levels gained, over the same windows. The current file is
+    read once; the older months are read for the windows and the first level."""
     cur, path, m = load_current(d)
-    return (f"File: {path}\n\n" + account_line(load_account(d)) + "\n" +
-            summary(cur, m.hist, m.prev, m.logs) + "\n" + lv_report(m.logs, m.lv))
+    logs = older_logs(d, cur) + m.logs
+    left = period_summary(date.today(), logs, m.hist + log_agg(m.logs))
+    tables = side_by_side(left, levels_gained(m.logs, m.lv, first_level(logs, m.lv)), gap=3)
+    return f"File: {path}\n\n" + account_line(load_account(d)) + "\n" + "\n".join(tables) + "\n"
 
 
 def legend_text(d, sort="k", search=None):
@@ -124,19 +151,19 @@ def legend_text(d, sort="k", search=None):
     (by kills). sort = a key of L_SORTS."""
     cur, path, m = load_current(d)
     return (f"File: {path}\n\n" +
-            legend_report(cur, m.logs, m.hl, m.pl, load_acct(d)[1], m.ll, sort, search))
+            legend_report(cur, m.logs, m.hl, m.pl, load_acct(d).bases, m.ll, sort, search))
 
 
 def kills_text(d):
     cur, _, m = load_current(d)
     acc, bases = load_acct(d)
-    return account_line(acc, "kills") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, 1, "KILLS", bases)
+    return account_line(acc, "kills") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "kills", bases)
 
 
 def wins_text(d):
     cur, _, m = load_current(d)
     acc, bases = load_acct(d)
-    return account_line(acc, "wins") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, 2, "WINS", bases)
+    return account_line(acc, "wins") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "wins", bases)
 
 
 BEST_HEAD = f"{'#':<2} | {'DATE':<16} | {'LEGEND':<{LEG_W}} | " + vals_cells(REP_NAMES, REP)
@@ -146,8 +173,8 @@ def best_matches(top):
     """The all-time leaderboard of single matches by kills (rows from top_matches)."""
     dash = "-" * len(BEST_HEAD)
     out = [paint(f"# TOP {TOP_MATCHES} ALL-TIME HIGHEST KILL MATCHES"), paint(BEST_HEAD), dash]
-    for i, (day, leg, k, w) in enumerate(top, 1):
-        out.append(f"{i:<2} | {day:<16} | {leg:<{LEG_W}} | " + rep_cells([0, k, w]))
+    for i, r in enumerate(top, 1):
+        out.append(f"{i:<2} | {r.date:<16} | {r.legend:<{LEG_W}} | " + rep_cells(r))
     if not top:
         out.append("(no matches with kills logged yet)")
     out.append("=" * len(BEST_HEAD))
@@ -158,13 +185,8 @@ def m_text(d):
     """This month's kills and wins, then the all-time highest-kill matches."""
     cur, _, m = load_current(d)
     t = log_agg(m.logs)
-    return (f"MONTH {cur}  |  " + paint(f"KILLS {t[1]:,}  |  WINS {t[2]:,}") + "\n\n" +
+    return (f"MONTH {cur}  |  " + paint(f"KILLS {t.kills:,}  |  WINS {t.wins:,}") + "\n\n" +
             best_matches(top_matches(m.top, m.logs)))
-
-
-def lv_text(d):
-    _, _, m = load_current(d)
-    return lv_report(m.logs, m.lv)
 
 
 LOG_RECENT = 20  # rows of each 'log' table
@@ -209,5 +231,5 @@ def log_text(d):
 
 
 VIEWS = {"report": report_text, "l": legend_text, "k": kills_text, "w": wins_text,
-         "m": m_text, "lv": lv_text, "log": log_text,
+         "m": m_text, "log": log_text,
          "lw": lambda d: legend_text(d, "w"), "la": lambda d: legend_text(d, "a"), "lm": lambda d: legend_text(d, "m")}

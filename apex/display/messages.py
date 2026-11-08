@@ -26,7 +26,7 @@ def logs_word(n):
 
 def fmt_saved(rec, level=None):
     """SAVED line of an Entry. Level-only updates show their level and day; matches show the current
-    account level (level = latest recorded, from save_log; None = the entry's own level; 0 = '-')."""
+    account level (level = latest recorded, Saved.level; None = the entry's own level; 0 = '-')."""
     if rec.level_only:
         return "SAVED - " + orange(f"LEVEL {rec.level:,}") + f" ({rec.date[:10]})"
     lvl = rec.level if level is None else level
@@ -36,14 +36,12 @@ def fmt_saved(rec, level=None):
 
 def fmt_totals(totals):
     """TOTALS line of a saved match (ends with a newline); "" when totals is None (not a match).
-    totals = (legend, (kills, wins), account (kills, wins)): all-time, after the match;
-    legend None = no legend (part left out); account None = never set."""
+    totals = MatchTotals: all-time, after the match; no legend = that part left out."""
     if not totals:
         return ""
-    legend, lt, at = totals
-    kw = lambda t: red(f"K: {t[0]:,}") + " " + green(f"W: {t[1]:,}")
-    leg = f"[{legend}] {kw(lt)} | " if legend else ""
-    return f"TOTALS -> {leg}" + purple("[ACCOUNT]") + " " + (kw(at) if at else "not set") + "\n"
+    kw = lambda t: red(f"K: {t.kills:,}") + " " + green(f"W: {t.wins:,}")
+    leg = f"[{totals.legend}] {kw(totals.legend_totals)} | " if totals.legend else ""
+    return f"TOTALS -> {leg}" + purple("[ACCOUNT]") + " " + (kw(totals.account) if totals.account else "not set") + "\n"
 
 
 def entry_line(e):
@@ -70,7 +68,7 @@ def fmt_previous(entry, change):
     if entry:
         return cyan("[MATCH]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins)
     old = change.old
-    was = kw_values(old[0], old[1]) if old else None
+    was = kw_values(old.kills, old.wins) if old else None
     if change.is_account:  # a change alone = the first account save or a confirmed lowering
         return purple("[ACCOUNT UPDATE]") + f" {change.date} | " + (
             f"totals changed (before: {was})" if was else "first save of the account totals")
@@ -81,18 +79,18 @@ def fmt_previous(entry, change):
 def fmt_undo(note, previous, entry=None, change=None, logged=None):
     """What undo reverted ('Undone: ...', with the file note), then the PREVIOUS LOG: the action that
     is now the most recent (previous = Month.last_action(), labeled by fmt_previous).
-    entry / change = the records removed (an account gain removes both); logged = the (kills, wins)
+    entry / change = the records removed (an account gain removes both); logged = the Tally
     still logged for the legend of a reverted base change, shown on top of the restored base."""
     old = change.old if change else None
     if entry:
-        acct = ("  " + purple("[ACCOUNT") + " restored to " + paint(f"KILLS {old[0]:,} | WINS {old[1]:,}") +
+        acct = ("  " + purple("[ACCOUNT") + " restored to " + paint(f"KILLS {old.kills:,} | WINS {old.wins:,}") +
                 purple("]")) if old else ""
         head = f"{entry_line(entry)}  ({note}){acct}"
     elif change.is_account:
-        what = "restored to " + paint(f"KILLS {old[0]:,} | WINS {old[1]:,}") if old else "removed (not set before)"
+        what = "restored to " + paint(f"KILLS {old.kills:,} | WINS {old.wins:,}") if old else "removed (not set before)"
         head = f"{change.date} | ACCOUNT {what}  ({note})"
     else:
-        what = ("restored to " + paint(f"KILLS {old[0] + logged[0]:,} | WINS {old[1] + logged[1]:,}") + " (all-time)"
+        what = ("restored to " + paint(f"KILLS {old.kills + logged.kills:,} | WINS {old.wins + logged.wins:,}") + " (all-time)"
                 if old else "removed (no base before)")
         head = f"{change.date} | BASE {change.target} {what}  ({note})"
     return f"Undone: {head}\nPREVIOUS LOG: {fmt_previous(*previous)}\n"

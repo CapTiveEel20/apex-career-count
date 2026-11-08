@@ -10,7 +10,7 @@ from apex.display.colors import paint
 from apex.display.messages import fmt_saved, fmt_totals
 from apex.services.account import account_cmd, accountl_cmd
 from apex.services.bases import base_cmd
-from apex.services.entries import save_log, save_quick, undo
+from apex.services.entries import save_match, save_quick, undo
 from apex.ui.menus import help_text
 from apex.ui.reports import VIEWS, legend_text
 from apex.ui.repl import confirm_lower, interactive
@@ -23,14 +23,13 @@ USAGE_NUM = ('python apex_stats.py <n>l | <n>k [legend] | <n>w [legend] [--date 
              "   # <n>l = n more levels, <n>k / <n>w = n kills / n wins only")
 USAGE_ACCOUNTL = ('python apex_stats.py accountl <n> [--date "YYYY-MM-DD[ HH:MM]"]'
                   "   # set the absolute account level (asks y/n if lower than the current one)")
-USAGE_REPORT = "python apex_stats.py report   # match summaries, followed by the level report (same as lv)"
+USAGE_REPORT = "python apex_stats.py report   # kills and wins per period, next to the levels gained"
 USAGE_L = ("python apex_stats.py l | lw | la | lm | ls <name>   # base legends' all-time kills and wins by kills "
            "(l), wins (lw), name (la) or last match (lm), or searched by name (ls), next to the top 3 legends by "
            "kills this month")
 USAGE_K = "python apex_stats.py k   # kills per legend: month, semiannual, annual, all-time + GRAND TOTAL"
 USAGE_W = "python apex_stats.py w   # wins per legend: month, semiannual, annual, all-time + GRAND TOTAL"
 USAGE_M = "python apex_stats.py m   # kills and wins of the current file + top 5 all-time highest-kill matches"
-USAGE_LV = "python apex_stats.py lv   # levels gained over 1 week, 1/3/6 months and 1 year"
 USAGE_UNDO = ("python apex_stats.py undo   # remove the most recently added entry, base or account change "
               "(repeat to go further back)")
 USAGE_ACCOUNT = ('python apex_stats.py account [<kills> <wins> [level]] [--date "YYYY-MM-DD[ HH:MM]"]'
@@ -43,10 +42,10 @@ USAGE_BASE = ('python apex_stats.py base [<legend> <kills> <wins>] [--date "YYYY
 USAGE_DIR = "python apex_stats.py --dir <path> ...   # data folder; default is ./apex_data next to the script"
 USAGE_REPL = ("python apex_stats.py   # interactive mode: '<kills> [wins] [legend]', '<kills> <legend>', "
               "'<n>l', "
-              "'<n>k', '<n>w' per line, account/accountl/base, report/m/l/lw/la/lm/ls/lv/k/w/log/undo/help, "
+              "'<n>k', '<n>w' per line, account/accountl/base, report/m/l/lw/la/lm/ls/k/w/log/undo/help, "
               "'date YYYY-MM-DD' / 'date today', sticky legend, empty line to quit")
 USAGE_HELP = "python apex_stats.py help   # what each command does"
-USAGE = "\n  " + "\n  ".join((USAGE_ADD, USAGE_NUM, USAGE_REPORT, USAGE_M, USAGE_L, USAGE_LV, USAGE_K, USAGE_W,
+USAGE = "\n  " + "\n  ".join((USAGE_ADD, USAGE_NUM, USAGE_REPORT, USAGE_M, USAGE_L, USAGE_K, USAGE_W,
                               USAGE_LOG, USAGE_UNDO, USAGE_ACCOUNT, USAGE_ACCOUNTL, USAGE_BASE, USAGE_HELP,
                               USAGE_DIR, USAGE_REPL))
 # Next to apex_stats.py (the parent of this package), or next to the executable when frozen
@@ -70,11 +69,11 @@ def cmd_add(a):
                              "(levels: python apex_stats.py 3l  or  accountl 700)") from None
         if a.legend:
             legend = a.legend
-        _, shown, level, rec, totals = save_log(a.dir, kills, wins, legend, a.date)
+        saved = save_match(a.dir, kills, wins, legend, a.date)
     except ValueError as e:
         sys.exit(paint(str(e)))
-    print(fmt_saved(rec, level) + "\n" + fmt_totals(totals))
-    print(shown, end="")
+    print(fmt_saved(saved.entry, saved.level) + "\n" + fmt_totals(saved.totals))
+    print(saved.summary, end="")
 
 
 def cmd_level(argv):
@@ -90,10 +89,10 @@ def cmd_level(argv):
         if not quick:
             raise ValueError("Error: levels take no legend; only <n>k / <n>w do (e.g. 5k wraith).")
         token, legend = quick
-        _, _, level, rec, totals = save_quick(a.dir, token, a.date, legend)
+        saved = save_quick(a.dir, token, a.date, legend)
     except ValueError as e:
         sys.exit(paint(str(e)))
-    print(fmt_saved(rec, level) + "\n" + fmt_totals(totals), end="")
+    print(fmt_saved(saved.entry, saved.level) + "\n" + fmt_totals(saved.totals), end="")
 
 
 def cmd_view(a):
@@ -167,7 +166,7 @@ def main():
     ap.add_argument("--dir", metavar="<path>", default=DEFAULT_DIR,
                     help="data folder (default: ./apex_data next to the script)")
     sp = ap.add_subparsers(dest="cmd", required=True,
-                           metavar="{add,report,m,l,lw,la,lm,ls,lv,k,w,log,undo,account,accountl,base,help}")
+                           metavar="{add,report,m,l,lw,la,lm,ls,k,w,log,undo,account,accountl,base,help}")
     p = sp.add_parser("add", prog="apex_stats.py add", usage="\n  " + USAGE_ADD,
                       help="record a match (kills, wins, legend)")
     p.add_argument("values", nargs="+", metavar="<kills> [wins] [legend] | <kills> <legend>",
@@ -182,7 +181,6 @@ def main():
                              ("lw", USAGE_L, "same as l, sorted by wins"),
                              ("la", USAGE_L, "same as l, sorted by name"),
                              ("lm", USAGE_L, "same as l, sorted by last match (most recent first)"),
-                             ("lv", USAGE_LV, "levels gained (report only)"),
                              ("k", USAGE_K, "kills per legend (month, semiannual, annual, all-time)"),
                              ("w", USAGE_W, "wins per legend (month, semiannual, annual, all-time)"),
                              ("log", USAGE_LOG, "recent matches and recent levels, side by side")):

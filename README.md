@@ -83,7 +83,6 @@ PREVIOUS LOG: [MATCH] 2026-11-06 21:41 | Legend: Wraith | KILLS 4 | WINS 1
 | `l` | Base legends' all-time totals (most kills first) with the date and time of their last match, next to the top 3 legends by kills this month |
 | `lw` / `la` / `lm` | Same, sorted by wins / name / last match (most recent first) |
 | `ls <name>` | Same, only the base legends whose name contains `<name>` (e.g. `ls wra`) |
-| `lv` | Levels gained over 1 week, 1/3/6 months and 1 year |
 | `k` / `w` | Kills / wins per legend for each period, with a `GRAND TOTAL` |
 | `log` | Side by side: this month's last 20 matches (no `account`/`base` gains) and the last 20 levels, with the change from the previous level |
 
@@ -99,7 +98,7 @@ python apex_stats.py add 6 wraith --date "2026-11-05 21:30"
 python apex_stats.py accountl 700
 python apex_stats.py account 12007 451
 python apex_stats.py report
-python apex_stats.py --dir D:/backup lv
+python apex_stats.py --dir D:/backup report
 ```
 
 - `--date "YYYY-MM-DD[ HH:MM]"` sets an entry's date.

@@ -13,7 +13,6 @@ CYAN, PURPLE, BLUE = "\033[1;96m", "\033[38;5;93m", "\033[1;94m"  # category tag
 GRAY, STEEL, YELLOW = "\033[90m", "\033[38;5;110m", "\033[93m"  # help menu: explanations, commands, title
 COLOR = False
 KW_RE = re.compile(r"[<\[]?\b(?:(kills?)|(wins?))\b[>\]]?(?:\s+\d(?:[\d,]*\d)?)?", re.IGNORECASE)
-LAST_LEVEL_RE = re.compile(r"(?<=last recorded level \()\d[\d,]*(?=\))")  # (Y) of the check_level error
 ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 
 
@@ -84,12 +83,10 @@ def yellow(s, color=None):
 
 def paint(text, color=None):
     """Color kill words (kills, <kills>, KILLS 12) red and win words (wins, [wins], WINS 3) green.
-    Level words stay plain; only the (Y) of "lower than the last recorded level (Y)" turns orange.
-    Used for prose and table headers; table values are colored cell by cell."""
+    Level words stay plain. Used for prose and table headers; table values are colored cell by cell."""
     if not _on(color):
         return text
-    text = KW_RE.sub(lambda m: red(m.group(0), True) if m.group(1) else green(m.group(0), True), text)
-    return LAST_LEVEL_RE.sub(lambda m: orange(m.group(0), True), text)
+    return KW_RE.sub(lambda m: red(m.group(0), True) if m.group(1) else green(m.group(0), True), text)
 
 
 def visible_len(s):

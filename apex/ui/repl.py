@@ -11,7 +11,7 @@ from apex.display.colors import paint
 from apex.display.messages import fmt_saved, fmt_totals
 from apex.services.account import account_cmd, accountl_cmd
 from apex.services.bases import base_cmd
-from apex.services.entries import save_log, save_quick, undo
+from apex.services.entries import save_match, save_quick, undo
 from apex.storage.account_file import load_acct
 from apex.ui.menus import help_text, quick_guide
 from apex.ui.reports import VIEWS, legend_text
@@ -104,22 +104,22 @@ class Session:
         if quick:  # 3l (never a legend); 5k, 1w [legend] (typed legend, else the pinned one)
             token, typed = quick
             legend = typed if typed is not None else self.sticky.legend  # a typed legend leaves sticky as is
-            _, _, level, rec, totals = save_quick(self.d, token, when, legend)
+            saved = save_quick(self.d, token, when, legend)
         else:  # anything else must be a match: <kills>, <kills> <wins> [legend] or <kills> <legend> (1 win)
             try:
                 kills, wins, typed = parse_match(parts)
             except ValueError:
                 raise InputError() from None
             legend = typed if typed is not None else self.sticky.legend
-            _, _, level, rec, totals = save_log(self.d, kills, wins, legend, when)
+            saved = save_match(self.d, kills, wins, legend, when)
             if typed is not None:
-                self.sticky.typed(rec.legend)
-        return fmt_saved(rec, level) + "\n" + fmt_totals(totals)
+                self.sticky.typed(saved.entry.legend)
+        return fmt_saved(saved.entry, saved.level) + "\n" + fmt_totals(saved.totals)
 
     def _pin(self, name):
         """p <legend>: lock a legend set with 'base'; a missing or unknown name changes nothing."""
         legend = clean(" ".join(name), LEG_W)
-        if legend not in load_acct(self.d)[1]:
+        if legend not in load_acct(self.d).bases:
             raise ValueError("Invalid or missing legend name. Use: p <name>")
         return self.sticky.pin(legend)
 
