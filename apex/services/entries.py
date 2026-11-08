@@ -8,23 +8,20 @@ from apex.core.levels import check_later, last_level
 from apex.core.parsing import QUICK_RE, clean
 from apex.core.records import Entry, MatchTotals, Stored, Tally
 from apex.display.messages import fmt_undo, logs_word
-from apex.display.tables import summary
 from apex.storage.ledger import Ledger
 from apex.storage.monthly_file import current_month
 
 
 class Saved(NamedTuple):
-    """A saved match or quick entry: its Entry, the current account level, the all-time totals
-    (see _match_totals; None for a level update) and the month summary."""
+    """A saved match or quick entry: its Entry, the current account level and the all-time totals
+    (see _match_totals; None for a level update)."""
     entry: Entry
     level: int
     totals: Optional[MatchTotals]
-    summary: str
 
 
 def _saved(ledger, entry, totals=None):
-    m = ledger.current
-    return Saved(entry, ledger.level(), totals, summary(ledger.month, m.hist, m.prev, m.logs))
+    return Saved(entry, ledger.level(), totals)
 
 
 def _match_totals(ledger, rec):

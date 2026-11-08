@@ -1,7 +1,7 @@
 """Monthly data file (apex_stats_YYYY-MM.txt): render, parse, locate and roll over a month. Commands
 change these files through the Ledger (storage/ledger.py).
 
-Header lines (@FILE, @HIST, @PREV, @HL, @PL, @LV, @LL, @TK) carry the totals of earlier months forward, so
+Header lines (@FILE, @HIST, @PREV, @HL, @PL, @LV, @LL, @TK, @MB) carry the totals of earlier months forward, so
 only the newest file is read ('report' alone also reads the older months, for its day windows and first level). @BU lines are the undo records (Change) of this file's base and
 account changes (target @ACCOUNT = the global account totals before the change).
 parse() dispatches on the first column and stops at the footer. A line it cannot read is skipped, and
@@ -13,7 +13,8 @@ from datetime import timedelta
 
 from apex.config import (AGG, DAY_FMT, FNAME, FOOTER_MARK, FRE, LEG_W, LV_KEEP_DAYS, REF_W, SRC_LEVEL, SRC_MATCH,
                          TAG_W, YEAR_MONTHS)
-from apex.core.aggregates import day_levels, ints, last_logged, legend_agg, legend_totals, log_agg, midx, top_matches
+from apex.core.aggregates import (day_levels, ints, last_logged, legend_agg, legend_totals, log_agg, midx,
+                                  monthly_bests, top_matches)
 from apex.core.levels import prune_lv
 from apex.core.records import Change, Entry, LevelDay, Month, Stored, TopMatch
 from apex.display.tables import SUM_HEAD, summary, vals_cells
@@ -35,9 +36,8 @@ def ll_row(leg, day):
     return f"{'@LL':<{TAG_W}} | {leg:<{REF_W}} | {day}"
 
 
-def tk_row(r):
-    day, leg, k, w = r
-    return f"{'@TK':<{TAG_W}} | {day:<16} | {leg:<{LEG_W}} | {k:>5} | {w:>5}"
+def tk_row(r, tag="@TK"):
+    return f"{tag:<{TAG_W}} | {r.date:<16} | {r.legend:<{LEG_W}} | {r.kills:>5} | {r.wins:>5}"
 
 
 def bu_row(c):
@@ -90,6 +90,8 @@ def render(month, m):
     out += [ll_row(leg, m.ll[leg]) for leg in sorted(m.ll)]
     out += ["", "# @TK = all-time highest-kill matches (previous months), best first", TK_HEAD, dash]
     out += [tk_row(r) for r in m.top]
+    out += ["", "# @MB = all-time monthly bests (#1 match of each previous month), best first", TK_HEAD, dash]
+    out += [tk_row(r, "@MB") for r in m.bests]
     if m.changes:  # only months with base or account changes have this section
         out += ["", "# @BU = base / @ACCOUNT changes of this month (undo puts the OLD values back; - = none)",
                 BU_HEAD, dash]
@@ -142,6 +144,8 @@ def parse(text):
                 m.ll[c[1].strip()] = c[2].strip()
             elif k == "@TK":
                 m.top.append(TopMatch(c[1].strip(), c[2].strip(), int(c[3]), int(c[4])))
+            elif k == "@MB":
+                m.bests.append(TopMatch(c[1].strip(), c[2].strip(), int(c[3]), int(c[4])))
             elif k == "@BU":
                 old = None if c[4].strip() == "-" else Stored(int(c[4]), int(c[5]), c[6].strip())
                 m.changes.append(Change(int(c[1]), c[2].strip(), c[3].strip(), old))
@@ -211,4 +215,5 @@ def roll_over(cur, month, day, m):
     pl = [(mo, leg, t) for mo, leg, t in m.pl + [(cur, leg, la[leg]) for leg in sorted(la)] if keep(mo)]
     cutoff = (day - timedelta(days=LV_KEEP_DAYS)).strftime(DAY_FMT)
     lv = prune_lv(m.lv + [LevelDay(*x) for x in sorted(day_levels(m.logs).items())], cutoff)
-    return Month(hist, prev, [], hl, pl, lv, [], last_logged(m.ll, m.logs), top_matches(m.top, m.logs), [])
+    return Month(hist, prev, [], hl, pl, lv, [], last_logged(m.ll, m.logs), top_matches(m.top, m.logs),
+                 monthly_bests(m.bests, m.logs), [])

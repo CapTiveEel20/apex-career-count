@@ -1,13 +1,14 @@
 # Apex Stats
 
-A command-line tracker for your **Apex Legends** kills, wins and account level, by legend. Your data is kept in plain `.txt` files on your own computer. It uses only the Python standard library.
+A terminal tracker for your **Apex Legends** kills, wins and account level, by legend. Your data is kept in plain `.txt` files on your own computer. It uses only the Python standard library.
 
 ## Run
 
 ```bash
-python apex_stats.py        # interactive mode (Enter on an empty line quits)
-python apex_stats.py help   # what each command does
+python apex_stats.py
 ```
+
+It opens the interactive menu. Type `help` to see what each command does, and press Enter on an empty line to quit.
 
 You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. To build an `.exe`, run `pyinstaller --onefile apex_stats.py`.
 
@@ -48,7 +49,7 @@ You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. 
 | `1w` | 1 win only |
 | `5k wraith` | 5 kills only, for Wraith (also `1w wraith`) |
 
-## Sticky legend (interactive mode)
+## Sticky legend
 
 The sticky legend is **OFF** by default.
 
@@ -80,6 +81,7 @@ PREVIOUS LOG: [MATCH] 2026-11-06 21:41 | Legend: Wraith | KILLS 4 | WINS 1
 |---|---|
 | `report` | Account totals, match summaries (month, semiannual, annual, all-time) and levels gained |
 | `m` | Kills and wins this month + top 5 all-time highest-kill matches (kept across months) |
+| `g` | Side by side: this month's top 10 games by kills (W/L shown, never ranked on) and the all-time top 6 monthly bests |
 | `l` | Base legends' all-time totals (most kills first) with the date and time of their last match, next to the top 3 legends by kills this month |
 | `lw` / `la` / `lm` | Same, sorted by wins / name / last match (most recent first) |
 | `ls <name>` | Same, only the base legends whose name contains `<name>` (e.g. `ls wra`) |
@@ -88,24 +90,9 @@ PREVIOUS LOG: [MATCH] 2026-11-06 21:41 | Legend: Wraith | KILLS 4 | WINS 1
 
 In a terminal, kills are shown in red, wins in green and levels in orange.
 
-## Command line
+## Dates
 
-Every input also works as a one-off command. `add` is optional when a match starts with a number:
-
-```bash
-python apex_stats.py 5 1 wraith
-python apex_stats.py add 6 wraith --date "2026-11-05 21:30"
-python apex_stats.py accountl 700
-python apex_stats.py account 12007 451
-python apex_stats.py report
-python apex_stats.py --dir D:/backup report
-```
-
-- `--date "YYYY-MM-DD[ HH:MM]"` sets an entry's date.
-- `--l NAME` sets the legend of `add`.
-- `--dir <path>` uses another data folder.
-
-In interactive mode, use `date YYYY-MM-DD` or `date today` instead of `--date`.
+Use `date YYYY-MM-DD` to save the next entries on that date, and `date today` to go back to today.
 
 ## Data and privacy
 

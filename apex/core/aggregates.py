@@ -1,5 +1,5 @@
 """Pure aggregation over log entries (records.Entry): totals, per-legend totals, months and periods (no I/O)."""
-from apex.config import NA, NO_LEGEND, SEMI_MONTHS, SRC_MATCH, TOP_MATCHES, YEAR_MONTHS
+from apex.config import NA, NO_LEGEND, SEMI_MONTHS, SRC_MATCH, TOP_MATCHES, TOP_MONTH_BESTS, YEAR_MONTHS
 from apex.core.records import LegendRow, Periods, Tally, TopMatch
 
 
@@ -50,6 +50,16 @@ def top_matches(top, logs, n=TOP_MATCHES):
     matches). Ties: the earlier match ranks first. Matches with 0 kills never qualify."""
     rows = list(top) + [TopMatch(e.date, e.legend, e.kills, e.wins) for e in logs if e.src == SRC_MATCH and e.kills > 0]
     return sorted(rows, key=lambda r: (-r.kills, r.date))[:n]
+
+
+def monthly_bests(bests, logs, n=TOP_MONTH_BESTS):
+    """All-time monthly bests after a month closes, [TopMatch], best first: the month's #1 match
+    (of logs) joins bests if there is room or its kills beat the lowest row, which it then replaces.
+    Ties: the earlier match ranks first."""
+    best = top_matches([], logs, 1)
+    if not best or (len(bests) >= n and best[0].kills <= min(r.kills for r in bests)):
+        return list(bests)
+    return sorted(list(bests) + best, key=lambda r: (-r.kills, r.date))[:n]
 
 
 def day_levels(logs):

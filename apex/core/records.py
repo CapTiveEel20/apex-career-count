@@ -96,8 +96,9 @@ class Month(NamedTuple):
     """Everything one monthly file holds: the totals carried from earlier months (hist, prev, hl,
     pl, lv, ll), its log entries and its undo records (changes). The lists are updated in place.
     ll = {legend: date and time of its last match} in earlier months; top = the all-time highest-kill
-    matches of earlier months, [TopMatch], best first; damaged = lines of the file that could not be
-    read, kept as they were."""
+    matches of earlier months, [TopMatch], best first; bests = the all-time monthly bests (each closed
+    month's #1 match), [TopMatch], best first; damaged = lines of the file that could not be read,
+    kept as they were."""
     hist: Tally
     prev: list
     logs: list
@@ -107,11 +108,12 @@ class Month(NamedTuple):
     changes: list
     ll: dict
     top: list
+    bests: list
     damaged: list
 
     @classmethod
     def empty(cls):
-        return cls(Tally(), [], [], {}, [], [], [], {}, [], [])
+        return cls(Tally(), [], [], {}, [], [], [], {}, [], [], [])
 
     @property
     def has_records(self):

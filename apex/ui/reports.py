@@ -1,13 +1,13 @@
-"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, log (each reads the current
+"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, g, log (each reads the current
 file once)."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from operator import attrgetter
 
-from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_MATCHES
-from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, top_matches
+from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_GAMES, TOP_MATCHES, TOP_MONTH_BESTS
+from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, monthly_bests, top_matches
 from apex.core.levels import first_level
 from apex.core.records import LevelDay
-from apex.display.colors import green, orange, paint, red
+from apex.display.colors import green, magenta, orange, paint, red
 from apex.display.messages import account_line
 from apex.display.tables import LREP_HEAD, REP_NAMES, num, rep_cells, side_by_side, vals_cells
 from apex.storage.account_file import load_acct, load_account
@@ -189,6 +189,39 @@ def m_text(d):
             best_matches(top_matches(m.top, m.logs)))
 
 
+def game_table(title, when_head, when_w, rows, when, empty):
+    """One table of 'g' (lines): rank, kills, win (W = the match had a win, else L), legend, then
+    when(row) in a column when_w wide."""
+    head = f"{'#':<2} | {'KILLS':>6} | {'WIN':<3} | {'LEGEND':<{LEG_W}} | {when_head:<{when_w}}"
+    out = [title, paint(head), "-" * len(head)]
+    for i, r in enumerate(rows, 1):
+        win = green(f"{'W':<3}") if r.wins > 0 else red(f"{'L':<3}")
+        out.append(f"{i:<2} | " + red(num(r.kills, 6)) + f" | {win} | " + magenta(f"{r.legend:<{LEG_W}}") +
+                   f" | {when(r):<{when_w}}")
+    return out + ([] if rows else [empty]) + ["=" * len(head)]
+
+
+def month_year(r):
+    """Month and year of a match: Nov 2026."""
+    return datetime.strptime(r.date[:7], "%Y-%m").strftime("%b %Y")
+
+
+def games_text(d):
+    """'g': the month's best games next to the all-time monthly bests. If the newest file is from an
+    earlier month, that month is already over: it counts as closed here too, before the first record
+    of the new month rolls it over."""
+    cur, _, m = load_current(d)
+    month = date.today().strftime("%Y-%m")
+    closed = month > cur
+    games = top_matches([], [] if closed else m.logs, TOP_GAMES)
+    bests = monthly_bests(m.bests, m.logs) if closed else m.bests
+    left = game_table(f"# TOP {TOP_GAMES} GAMES THIS MONTH  ({month if closed else cur})", "DATE", 10, games,
+                      lambda r: r.date[:10], "(no matches with kills this month)")
+    right = game_table(f"# ALL-TIME TOP {TOP_MONTH_BESTS} MONTHLY BESTS", "MONTH", 8, bests, month_year,
+                       "(no closed months yet)")
+    return "\n".join(side_by_side(left, right, gap=3)) + "\n"
+
+
 LOG_RECENT = 20  # rows of each 'log' table
 # 'log' column widths: the two tables and their gap fit in 79 columns
 MLOG_HEAD = f"{'DATE':<16} | {'LEGEND':<{LEG_W}} | {'KILLS':>6} | {'WINS':>5}"
@@ -231,5 +264,5 @@ def log_text(d):
 
 
 VIEWS = {"report": report_text, "l": legend_text, "k": kills_text, "w": wins_text,
-         "m": m_text, "log": log_text,
+         "m": m_text, "g": games_text, "log": log_text,
          "lw": lambda d: legend_text(d, "w"), "la": lambda d: legend_text(d, "a"), "lm": lambda d: legend_text(d, "m")}

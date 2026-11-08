@@ -13,11 +13,6 @@ class InputError(ValueError):
     """Unrecognized command or malformed input: the REPL answers with the help menu."""
 
 
-def is_quick(token):
-    """A quick entry: "3l", "5k" or "1w"."""
-    return bool(QUICK_RE.match(token))
-
-
 def parse_quick(tokens):
     """A quick entry -> (token, legend or None); None if tokens are not one. Only <n>k / <n>w
     take an optional legend after them ("5k wraith"); "3l" never takes one.
@@ -65,20 +60,8 @@ def parse_match(tokens):
 
 
 def parse_when(when):
-    """None -> now; 'YYYY-MM-DD HH:MM' exact; 'YYYY-MM-DD' -> that day at the current time."""
-    if not when:
-        return datetime.now()
-    when = when.strip()
-    for fmt in (DFMT, DAY_FMT):
-        try:
-            dt = datetime.strptime(when, fmt)
-        except ValueError:
-            continue
-        if fmt == DAY_FMT:
-            now = datetime.now()
-            dt = dt.replace(hour=now.hour, minute=now.minute)
-        return dt
-    raise ValueError("Error: date must be 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM'.")
+    """None -> now; otherwise the session's active date, 'YYYY-MM-DD HH:MM' (checked by parse_day)."""
+    return datetime.strptime(when, DFMT) if when else datetime.now()
 
 
 def parse_day(s):

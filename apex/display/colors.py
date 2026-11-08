@@ -11,6 +11,7 @@ import sys
 RED, GREEN, ORANGE, RESET = "\033[91m", "\033[92m", "\033[38;5;208m", "\033[0m"
 CYAN, PURPLE, BLUE = "\033[1;96m", "\033[38;5;93m", "\033[1;94m"  # category tags only
 GRAY, STEEL, YELLOW = "\033[90m", "\033[38;5;110m", "\033[93m"  # help menu: explanations, commands, title
+MAGENTA = "\033[95m"  # legend names in 'g'
 COLOR = False
 KW_RE = re.compile(r"[<\[]?\b(?:(kills?)|(wins?))\b[>\]]?(?:\s+\d(?:[\d,]*\d)?)?", re.IGNORECASE)
 ANSI_RE = re.compile(r"\033\[[0-9;]*m")
@@ -36,7 +37,7 @@ def init_color():
 
 
 def setup():
-    """Enable colors for this run if the terminal supports them (called once by cli.main)."""
+    """Enable colors for this run if the terminal supports them (called once by interactive)."""
     global COLOR
     COLOR = init_color()
 
@@ -79,6 +80,10 @@ def steel(s, color=None):
 
 def yellow(s, color=None):
     return f"{YELLOW}{s}{RESET}" if _on(color) else str(s)
+
+
+def magenta(s, color=None):
+    return f"{MAGENTA}{s}{RESET}" if _on(color) else str(s)
 
 
 def paint(text, color=None):

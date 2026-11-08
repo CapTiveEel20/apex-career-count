@@ -5,9 +5,9 @@ input/print loop and every rule can be exercised without a terminal.
 """
 from datetime import datetime
 
-from apex.config import ALIASES, LEG_W, NO_LEGEND
+from apex.config import ALIASES, DEFAULT_DIR, LEG_W, NO_LEGEND
 from apex.core.parsing import InputError, clean, parse_day, parse_match, parse_quick
-from apex.display.colors import paint
+from apex.display.colors import paint, setup
 from apex.display.messages import fmt_saved, fmt_totals
 from apex.services.account import account_cmd, accountl_cmd
 from apex.services.bases import base_cmd
@@ -133,7 +133,8 @@ class Session:
         return f"  Active date: {self.day or 'today (system)'}\n"
 
 
-def interactive(d):
+def interactive(d=DEFAULT_DIR):
+    setup()
     print(quick_guide(), end="")
     session = Session(d)
     while True:
