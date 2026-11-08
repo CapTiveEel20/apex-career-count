@@ -90,8 +90,9 @@ def lv_report(logs, lv):
     today = date.today()
     end = today.strftime(DAY_FMT)
     # (day or timestamp, level): carried days + every current-month entry, so gains within a
-    # single day are counted too. Levels never decrease, so sorting by time also sorts by level.
-    points = sorted(x for x in lv + [(e.date, e.level) for e in logs if e.level] if x[0][:10] <= end)
+    # single day are counted too. Sorted by time only: same-minute entries stay in ID order.
+    points = sorted((x for x in lv + [(e.date, e.level) for e in logs if e.level] if x[0][:10] <= end),
+                    key=lambda x: x[0])
     current = points[-1][1] if points else 0
     windows = (("1 WEEK", today - timedelta(days=7)), ("1 MONTH", months_ago(today, 1)),
                ("3 MONTHS", months_ago(today, 3)), ("6 MONTHS", months_ago(today, 6)),
@@ -187,10 +188,10 @@ LLOG_HEAD = f"{'DATE':<16} | {'LEVEL':>7} | {'CHANGE':>7}"
 
 
 def level_log(month, logs, lv):
-    """'logl': every recorded level, oldest first: the carried @LV days of earlier months (highest
+    """'logl': every recorded level, oldest first: the carried @LV days of earlier months (last
     level per day) and each current-month entry with a level, with the change from the row before."""
     dash = "-" * len(LLOG_HEAD)
-    out = [f"# LEVEL HISTORY  (month {month}; earlier months: highest level per day)", LLOG_HEAD, dash]
+    out = [f"# LEVEL HISTORY  (month {month}; earlier months: last level per day)", LLOG_HEAD, dash]
     prev = None
     for when, n in list(lv) + [(e.date, e.level) for e in logs if e.level]:
         change = f"{n - prev:+,}" if prev is not None else "-"

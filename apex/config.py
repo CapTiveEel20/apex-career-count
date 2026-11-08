@@ -26,3 +26,4 @@ SRC_MATCH, SRC_ACCOUNT, SRC_BASE, SRC_LEVEL = "M", "A", "B", "L"
 # usage, help, menu or document
 ALIASES = {"duno": "undo"}
 TOP_MATCHES = 5  # size of the all-time highest-kill matches leaderboard ('m')
+ABORTED = "Aborted: nothing changed."  # a lowering of account, base or level was not confirmed

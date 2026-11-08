@@ -5,51 +5,58 @@ input/print loop and every rule can be exercised without a terminal.
 """
 from datetime import datetime
 
-from apex.config import ALIASES, NO_LEGEND
-from apex.core.parsing import InputError, parse_day, parse_match, parse_quick
+from apex.config import ALIASES, LEG_W, NO_LEGEND
+from apex.core.parsing import InputError, clean, parse_day, parse_match, parse_quick
 from apex.display.colors import paint
-from apex.display.messages import fmt_saved
-from apex.services.account import account_cmd
+from apex.display.messages import fmt_saved, fmt_totals
+from apex.services.account import account_cmd, accountl_cmd
 from apex.services.bases import base_cmd
 from apex.services.entries import save_log, save_quick, undo
-from apex.ui.menus import cheat_text, quick_guide
+from apex.storage.account_file import load_acct
+from apex.ui.menus import quick_guide
 from apex.ui.reports import VIEWS, legend_text
 
 
+def confirm_lower():
+    """Ask before an absolute value goes down: only 'y' proceeds (end of input or Ctrl+C = no)."""
+    try:
+        return input("Warning: New value is lower than current. Proceed? (y/n): ").strip() == "y"
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+
+
 class Sticky:
-    """Sticky legend: OFF by default. While ON, the legend typed in a match is pinned and reused by
-    matches without a legend and by <n>k / <n>w. Turning it OFF always unpins it."""
+    """Sticky legend: OFF by default. 'p <legend>' locks a legend set with 'base'; it is then reused
+    by matches without a legend and by <n>k / <n>w, until '-' clears it."""
 
     def __init__(self):
-        self.on, self.legend = False, None
+        self.legend = None
 
-    def toggle(self):
-        self.on, self.legend = not self.on, None
-        return ("  Sticky legend ON: the next legend you type is pinned." if self.on else
-                "  Sticky legend OFF: entries without a legend are saved with no legend.")
+    def pin(self, legend):
+        self.legend = legend
+        return f"  Sticky legend ON: {legend} is locked."
 
     def clear(self):
-        self.on, self.legend = False, None
+        self.legend = None
         return "  Sticky legend cleared and OFF: entries without a legend are saved with no legend."
 
     def typed(self, legend):
-        """A match was saved with this typed legend: "-" clears the mode; any other is pinned while ON."""
+        """A match was saved with this typed legend: "-" clears the lock; any other leaves it as is."""
         if legend == NO_LEGEND:
             self.clear()
-        elif self.on:
-            self.legend = legend
 
     @property
     def tag(self):
-        """Prompt tag: the pinned legend, 'sticky ON' with nothing pinned yet, None when OFF."""
-        return self.legend or ("sticky ON" if self.on else None)
+        """Prompt tag: the locked legend, None when OFF."""
+        return self.legend
 
 
 class Session:
     """One interactive session: data folder, active date (None = system date) and sticky legend."""
 
-    def __init__(self, d):
-        self.d, self.day, self.sticky = d, None, Sticky()
+    def __init__(self, d, confirm=confirm_lower):
+        self.d, self.day, self.sticky, self.confirm = d, None, Sticky(), confirm
 
     @property
     def prompt(self):
@@ -79,33 +86,42 @@ class Session:
         if cmd == "undo":
             return undo(self.d)
         if cmd == "c":
-            return cheat_text(cli=False)
+            return quick_guide()
         if head == "date":
             return self._set_date(parts)
-        if cmd == "p":
-            return self.sticky.toggle() + "\n"
+        if head == "p":
+            return self._pin(parts[1:]) + "\n"
         if cmd == NO_LEGEND:  # "-" alone: unpin the legend and turn sticky OFF, nothing is saved
             return self.sticky.clear() + "\n"
         when = f"{self.day} {datetime.now():%H:%M}" if self.day else None
         if head == "base":
-            return base_cmd(self.d, parts[1:], when)
+            return base_cmd(self.d, parts[1:], when, self.confirm)
         if head == "account":  # kills and wins only, never the sticky legend
-            return account_cmd(self.d, parts[1:], when)
+            return account_cmd(self.d, parts[1:], when, self.confirm)
+        if head == "accountl":
+            return accountl_cmd(self.d, parts[1:], when, self.confirm)
         quick = parse_quick(parts)
-        if quick:  # 700, 3l, +3 (never a legend); 5k, 1w [legend] (typed legend, else the pinned one)
+        if quick:  # 3l (never a legend); 5k, 1w [legend] (typed legend, else the pinned one)
             token, typed = quick
             legend = typed if typed is not None else self.sticky.legend  # a typed legend leaves sticky as is
-            _, _, level, rec = save_quick(self.d, token, when, legend)
-        else:  # anything else must be a match: <kills> <wins> [legend] or <kills> <legend> (1 win)
+            _, _, level, rec, totals = save_quick(self.d, token, when, legend)
+        else:  # anything else must be a match: <kills>, <kills> <wins> [legend] or <kills> <legend> (1 win)
             try:
                 kills, wins, typed = parse_match(parts)
             except ValueError:
                 raise InputError() from None
             legend = typed if typed is not None else self.sticky.legend
-            _, _, level, rec = save_log(self.d, kills, wins, legend, when)
+            _, _, level, rec, totals = save_log(self.d, kills, wins, legend, when)
             if typed is not None:
                 self.sticky.typed(rec.legend)
-        return fmt_saved(rec, level) + "\n"
+        return fmt_saved(rec, level) + "\n" + fmt_totals(totals)
+
+    def _pin(self, name):
+        """p <legend>: lock a legend set with 'base'; a missing or unknown name changes nothing."""
+        legend = clean(" ".join(name), LEG_W)
+        if legend not in load_acct(self.d)[1]:
+            raise ValueError("Invalid or missing legend name. Use: p <name>")
+        return self.sticky.pin(legend)
 
     def _set_date(self, parts):
         if len(parts) != 2:
@@ -118,7 +134,7 @@ class Session:
 
 
 def interactive(d):
-    print(quick_guide(), end="")
+    print(quick_guide() + " Press Enter on an empty line to quit.\n", end="")
     session = Session(d)
     while True:
         try:

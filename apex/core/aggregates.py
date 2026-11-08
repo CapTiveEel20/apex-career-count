@@ -71,13 +71,8 @@ def top_matches(top, logs, n=TOP_MATCHES):
 
 
 def day_levels(logs):
-    """day -> highest level recorded that day (level 0 = not recorded)."""
-    d = {}
-    for e in logs:
-        if e.level:
-            day = e.date[:10]
-            d[day] = max(d.get(day, 0), e.level)
-    return d
+    """day -> last level recorded that day (level 0 = not recorded)."""
+    return {e.date[:10]: e.level for e in sorted(logs, key=lambda e: (e.date, e.id)) if e.level}
 
 
 def periods(month, cur, hist, prev):

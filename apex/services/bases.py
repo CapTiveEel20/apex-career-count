@@ -1,5 +1,5 @@
 """'base' command: list, set or correct a legend's all-time totals, or log the gain."""
-from apex.config import DFMT, LEG_W, NO_LEGEND, REP, SRC_BASE
+from apex.config import ABORTED, DFMT, LEG_W, NO_LEGEND, REP, SRC_BASE
 from apex.core.aggregates import legend_totals, zero
 from apex.core.parsing import LVL_TOKEN_RE, NUM_RE, InputError, clean, parse_when, to_int
 from apex.display.colors import green, paint, red
@@ -41,7 +41,7 @@ def record_base(d, opened, legend, kills, wins, acct, stamp):
     save_base(d, legend, kills, wins, acct)
 
 
-def base_cmd(d, args, when=None):
+def base_cmd(d, args, when, confirm):
     """'base' lists the legend bases. 'base <legend> <kills> <wins>' = the legend's all-time totals:
     - legend not listed yet: they become its all-time totals (the entries already logged for it are
       included, nothing is added on top): the base stores only the part not covered by logged
@@ -50,7 +50,8 @@ def base_cmd(d, args, when=None):
       a match for that legend through save_log (so it reaches the account totals too; undo takes
       it back); lower values are a correction of the base, nothing logged;
     - 0 0 removes the base.
-    Setting, correcting and removing a base are undoable too (record_base)."""
+    Values lower than the current all-time totals (0 0 included) go ahead only if confirm() agrees,
+    else ValueError(ABORTED). Setting, correcting and removing a base are undoable too (record_base)."""
     acct = load_acct(d)
     if not args:
         return base_table(acct[1], legend_logged(d))
@@ -68,22 +69,25 @@ def base_cmd(d, args, when=None):
     dt = parse_when(when)
     stamp = dt.strftime(DFMT)
     opened = open_month(d, dt, any_month=True)  # base changes are not dated: never a closed month
-    if not (kills or wins):
-        record_base(d, opened, legend, 0, 0, acct, stamp)
-        return f"REMOVED - BASE {legend}\n"
     m = opened[1]
     t = legend_totals(m.hl, m.logs).get(legend, zero())
     lk, lw = t[1], t[2]  # kills / wins already logged for this legend
-    saved = ("SAVED - BASE  " + f"{legend}  " + paint(f"KILLS {kills:,}  |  WINS {wins:,}") +
-             "  (all-time totals of this legend)\n")
-    if kills < lk or wins < lw:
+    removing = not (kills or wins)
+    if not removing and (kills < lk or wins < lw):
         raise ValueError(f"Error: {legend} already has " + paint(f"KILLS {lk:,} | WINS {lw:,}") +
                          " in logged entries; its all-time totals can't be lower.")
+    if legend in bases:
+        tk, tw = bases[legend][0] + lk, bases[legend][1] + lw  # current all-time totals
+        if (kills < tk or wins < tw) and not confirm():
+            raise ValueError(ABORTED)
+    if removing:
+        record_base(d, opened, legend, 0, 0, acct, stamp)
+        return f"REMOVED - BASE {legend}\n"
+    saved = ("SAVED - BASE  " + f"{legend}  " + paint(f"KILLS {kills:,}  |  WINS {wins:,}") +
+             "  (all-time totals of this legend)\n")
     if legend not in bases:  # first time: set the all-time totals, nothing logged
         record_base(d, opened, legend, kills - lk, wins - lw, acct, stamp)
         return saved
-    bk, bw = bases[legend][:2]
-    tk, tw = bk + lk, bw + lw  # current all-time totals
     dk, dw = kills - tk, wins - tw
     if dk < 0 or dw < 0:  # lower than before: correct the base, nothing logged
         record_base(d, opened, legend, kills - lk, wins - lw, acct, stamp)
@@ -91,7 +95,7 @@ def base_cmd(d, args, when=None):
     if not (dk or dw):
         return (f"BASE  {legend}  already up to date: " + paint(f"KILLS {tk:,}  |  WINS {tw:,}") +
                 ", nothing logged.\n")
-    _, _, level, rec = save_log(d, dk, dw, legend, when, account=acct[0], source=SRC_BASE)
+    _, _, level, rec, _ = save_log(d, dk, dw, legend, when, account=acct[0], source=SRC_BASE)
     line = (f"BASE  {legend}  " + red(f"KILLS {tk:,} -> {kills:,} (+{dk:,})") + "  |  " +
             green(f"WINS {tw:,} -> {wins:,} (+{dw:,})") + "\n")
     return line + fmt_saved(rec, level) + "\n"

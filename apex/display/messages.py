@@ -34,6 +34,18 @@ def fmt_saved(rec, level=None):
             "  " + level_txt(lvl) + f"  ({rec.date})")
 
 
+def fmt_totals(totals):
+    """TOTALS line of a saved match (ends with a newline); "" when totals is None (not a match).
+    totals = (legend, (kills, wins), account (kills, wins)): all-time, after the match;
+    legend None = no legend (part left out); account None = never set."""
+    if not totals:
+        return ""
+    legend, lt, at = totals
+    kw = lambda t: red(f"K: {t[0]:,}") + " " + green(f"W: {t[1]:,}")
+    leg = f"[{legend}] {kw(lt)} | " if legend else ""
+    return f"TOTALS -> {leg}[ACCOUNT] " + (kw(at) if at else "not set") + "\n"
+
+
 def entry_line(e):
     """One log entry as undo shows it: date | legend | wins | kills | level."""
     return f"{e.date} | {e.legend} | " + paint(f"WINS {e.wins:,} | KILLS {e.kills:,}") + " | " + orange(f"LEVEL {e.level:,}")
@@ -59,7 +71,7 @@ def fmt_previous(entry, change):
         return cyan("[MATCH]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins)
     old = change.old
     was = kw_values(old[0], old[1]) if old else None
-    if change.is_account:  # a change alone = the first account save (no totals before)
+    if change.is_account:  # a change alone = the first account save or a confirmed lowering
         return magenta("[ACCOUNT UPDATE]") + f" {change.date} | " + (
             f"totals changed (before: {was})" if was else "first save of the account totals")
     return blue("[BASE UPDATE]") + f" {change.date} | Legend: {change.target} | " + (

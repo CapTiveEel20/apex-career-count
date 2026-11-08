@@ -6,7 +6,7 @@ A command-line tracker for your **Apex Legends** kills, wins and account level, 
 
 ```bash
 python apex_stats.py        # interactive mode (Enter on an empty line quits)
-python apex_stats.py c      # cheat sheet
+python apex_stats.py c      # help menu
 ```
 
 You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. To build an `.exe`, run `pyinstaller --onefile apex_stats.py`.
@@ -16,11 +16,12 @@ You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. 
 | Input | What it does |
 |---|---|
 | `account <kills> <wins>` | The first time, saves your all-time account totals. After that, logs the gain (new - saved). |
+| `account <kills> <wins> <level>` | Same, and also sets your account level. |
 | `account` | Shows the account totals and your current level. |
 | `base <legend> <kills> <wins>` | The first time, sets a legend's all-time totals (nothing is logged). After that, logs the gain for that legend: it shows in `report` and is added to the account totals. |
 | `base` | Lists the legends with a base. `base <legend> 0 0` removes one. |
 
-- `account` takes kills and wins only. Totals lower than the saved ones are an error, and nothing changes.
+- `account`, `base` and `accountl` ask `Warning: New value is lower than current. Proceed? (y/n):` before lowering a value. Only `y` proceeds. A confirmed lowering logs nothing, and `undo` reverts it.
 - Every match is added to the account totals and to its legend's totals automatically.
 - Base and account gains are not single matches: they never appear in `log`, the top 5 matches or a legend's last match.
 
@@ -28,6 +29,7 @@ You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. 
 
 | Input | What it saves |
 |---|---|
+| `7` | 7 kills, 0 wins, no legend (or the sticky legend) |
 | `5 1 wraith` | 5 kills, 1 win, Wraith |
 | `5 1` | 5 kills, 1 win, no legend |
 | `5 wraith` | 5 kills, **1 win (added automatically)**, Wraith |
@@ -40,8 +42,8 @@ You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. 
 
 | Input | What it does |
 |---|---|
-| `700` | Sets your account level (it can never go down) |
-| `3l` (or `+3`) | Adds 3 levels |
+| `accountl 700` | Sets your account level (asks y/n if it is lower than the current one) |
+| `3l` | Adds 3 levels |
 | `5k` | 5 kills only |
 | `1w` | 1 win only |
 | `5k wraith` | 5 kills only, for Wraith (also `1w wraith`) |
@@ -50,13 +52,13 @@ You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. 
 
 The sticky legend is **OFF** by default.
 
-- `p` turns it ON or OFF.
-- While it is ON, the legend you type is pinned. Matches without a legend use it, and so do `<n>k` and `<n>w` (unless you type a legend after them, e.g. `5k wraith`).
-- `-` unpins the legend and turns sticky OFF (on a line of its own it saves nothing).
+- `p <name>` locks a legend already set with `base`. A missing or unknown name is an error and changes nothing.
+- While it is locked, matches without a legend use it, and so do `<n>k` and `<n>w`. A legend typed in an entry (e.g. `5k wraith`) is used for that entry only.
+- `-` clears the legend and turns sticky OFF (on a line of its own it saves nothing).
 
 ```
-> p
-[sticky ON]> 3 0 bangalore
+> p bangalore
+[Bangalore]> 3 0
 [Bangalore]> 2 1        ← saved as Bangalore
 [Bangalore]> 2k         ← saved as Bangalore
 [Bangalore]> -
@@ -90,12 +92,12 @@ In a terminal, kills are shown in red, wins in green and levels in orange.
 
 ## Command line
 
-Every input also works as a one-off command. Matches need `add`:
+Every input also works as a one-off command. `add` is optional when a match starts with a number:
 
 ```bash
-python apex_stats.py add 5 1 wraith
+python apex_stats.py 5 1 wraith
 python apex_stats.py add 6 wraith --date "2026-11-05 21:30"
-python apex_stats.py 700
+python apex_stats.py accountl 700
 python apex_stats.py account 12007 451
 python apex_stats.py report
 python apex_stats.py --dir D:/backup lv

@@ -83,7 +83,7 @@ def render(month, m):
     out += [row("@HL", leg, m.hl[leg]) for leg in sorted(m.hl)]
     out += ["", "# @PL = per-month, per-legend totals (last 11 months)", PL_HEAD, dash]
     out += [pl_row(mo, leg, t) for mo, leg, t in m.pl]
-    out += ["", "# @LV = highest level reached per day (previous months)", LV_HEAD, dash]
+    out += ["", "# @LV = last level recorded per day (previous months)", LV_HEAD, dash]
     out += [lv_row(day, n) for day, n in m.lv]
     out += ["", "# @LL = date and time of the last match logged per legend (previous months)", LL_HEAD, dash]
     out += [ll_row(leg, m.ll[leg]) for leg in sorted(m.ll)]
