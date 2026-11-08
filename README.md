@@ -6,7 +6,7 @@ A command-line tracker for your **Apex Legends** kills, wins and account level, 
 
 ```bash
 python apex_stats.py        # interactive mode (Enter on an empty line quits)
-python apex_stats.py c      # help menu
+python apex_stats.py help   # what each command does
 ```
 
 You need Python 3.7 or newer. Data is saved in `apex_data/` next to the script. To build an `.exe`, run `pyinstaller --onefile apex_stats.py`.
@@ -85,8 +85,7 @@ PREVIOUS LOG: [MATCH] 2026-11-06 21:41 | Legend: Wraith | KILLS 4 | WINS 1
 | `ls <name>` | Same, only the base legends whose name contains `<name>` (e.g. `ls wra`) |
 | `lv` | Levels gained over 1 week, 1/3/6 months and 1 year |
 | `k` / `w` | Kills / wins per legend for each period, with a `GRAND TOTAL` |
-| `log` | Matches only: this month's matches (no `account`/`base` gains or level updates) |
-| `logl` | Levels only: level history, with the change from the previous level |
+| `log` | Side by side: this month's last 20 matches (no `account`/`base` gains) and the last 20 levels, with the change from the previous level |
 
 In a terminal, kills are shown in red, wins in green and levels in orange.
 

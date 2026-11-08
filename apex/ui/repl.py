@@ -13,7 +13,7 @@ from apex.services.account import account_cmd, accountl_cmd
 from apex.services.bases import base_cmd
 from apex.services.entries import save_log, save_quick, undo
 from apex.storage.account_file import load_acct
-from apex.ui.menus import quick_guide
+from apex.ui.menus import help_text, quick_guide
 from apex.ui.reports import VIEWS, legend_text
 
 
@@ -85,8 +85,8 @@ class Session:
             return VIEWS[cmd](self.d)
         if cmd == "undo":
             return undo(self.d)
-        if cmd == "c":
-            return quick_guide()
+        if cmd == "help":
+            return help_text()
         if head == "date":
             return self._set_date(parts)
         if head == "p":
@@ -134,7 +134,7 @@ class Session:
 
 
 def interactive(d):
-    print(quick_guide() + " Press Enter on an empty line to quit.\n", end="")
+    print(quick_guide(), end="")
     session = Session(d)
     while True:
         try:

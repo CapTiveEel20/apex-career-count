@@ -1,19 +1,19 @@
 """Raw ANSI colors (no external libraries): kills red, wins green, levels orange; record-type labels
-(undo's PREVIOUS LOG) cyan / magenta / blue.
+(undo's PREVIOUS LOG) cyan / purple / blue; the help menu also uses steel, yellow and gray.
 
 COLOR is module state set once by setup(). Read it only inside this module (red, green, orange,
-paint, color_quick); never copy it with `from apex.display.colors import COLOR`.
+paint); never copy it with `from apex.display.colors import COLOR`.
 """
 import os
 import re
 import sys
 
 RED, GREEN, ORANGE, RESET = "\033[91m", "\033[92m", "\033[38;5;208m", "\033[0m"
-CYAN, MAGENTA, BLUE = "\033[1;96m", "\033[1;95m", "\033[1;94m"  # bold: labels only
+CYAN, PURPLE, BLUE = "\033[1;96m", "\033[38;5;93m", "\033[1;94m"  # category tags only
+GRAY, STEEL, YELLOW = "\033[90m", "\033[38;5;110m", "\033[93m"  # help menu: explanations, commands, title
 COLOR = False
 KW_RE = re.compile(r"[<\[]?\b(?:(kills?)|(wins?))\b[>\]]?(?:\s+\d(?:[\d,]*\d)?)?", re.IGNORECASE)
 LAST_LEVEL_RE = re.compile(r"(?<=last recorded level \()\d[\d,]*(?=\))")  # (Y) of the check_level error
-QUICK_TXT_RE = re.compile(r"(?<![\w+<])\+?(?:<n>|\d+)([kw])\b")  # <n>k / 5k (red), <n>w / 1w (green)
 ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 
 
@@ -62,12 +62,24 @@ def cyan(s, color=None):
     return f"{CYAN}{s}{RESET}" if _on(color) else str(s)
 
 
-def magenta(s, color=None):
-    return f"{MAGENTA}{s}{RESET}" if _on(color) else str(s)
+def purple(s, color=None):
+    return f"{PURPLE}{s}{RESET}" if _on(color) else str(s)
 
 
 def blue(s, color=None):
     return f"{BLUE}{s}{RESET}" if _on(color) else str(s)
+
+
+def gray(s, color=None):
+    return f"{GRAY}{s}{RESET}" if _on(color) else str(s)
+
+
+def steel(s, color=None):
+    return f"{STEEL}{s}{RESET}" if _on(color) else str(s)
+
+
+def yellow(s, color=None):
+    return f"{YELLOW}{s}{RESET}" if _on(color) else str(s)
 
 
 def paint(text, color=None):
@@ -83,10 +95,3 @@ def paint(text, color=None):
 def visible_len(s):
     """Length of s as shown on the terminal (ANSI color codes take no space)."""
     return len(ANSI_RE.sub("", s))
-
-
-def color_quick(text):
-    """Quick-add shortcuts (<n>k red, <n>w green) in menu text (paint does not match them)."""
-    if not COLOR:
-        return text
-    return QUICK_TXT_RE.sub(lambda m: red(m.group(0)) if m.group(1) == "k" else green(m.group(0)), text)

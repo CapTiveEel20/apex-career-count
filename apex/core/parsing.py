@@ -10,7 +10,7 @@ LVL_TOKEN_RE = re.compile(r"^[+-]?\d+$")  # a number where a legend is expected 
 
 
 class InputError(ValueError):
-    """Unrecognized command or malformed input: the REPL answers with QUICK_GUIDE."""
+    """Unrecognized command or malformed input: the REPL answers with the help menu."""
 
 
 def is_quick(token):

@@ -1,4 +1,4 @@
-"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, lv, log, logl (each reads the current
+"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, lv, log (each reads the current
 file once)."""
 from datetime import date, timedelta
 
@@ -167,52 +167,47 @@ def lv_text(d):
     return lv_report(m.logs, m.lv)
 
 
-MLOG_HEAD = f"{'DATE':<16} | {'LEGEND':<{LEG_W}} | " + vals_cells(REP_NAMES, REP)
+LOG_RECENT = 20  # rows of each 'log' table
+# 'log' column widths: the two tables and their gap fit in 79 columns
+MLOG_HEAD = f"{'DATE':<16} | {'LEGEND':<{LEG_W}} | {'KILLS':>6} | {'WINS':>5}"
+LLOG_HEAD = f"{'DATE':<10} | {'LEVEL':>6} | {'CHANGE':>6}"
 
 
 def match_log(month, logs):
-    """'log': every match entry of the current file, oldest first. Entries logged by an
-    account or base update (SRC A / B) and level-only updates (SRC L) are left out."""
+    """Left table of 'log' (lines): the last LOG_RECENT match entries of the current file, oldest
+    first. Entries logged by an account or base update (SRC A / B) and level-only updates (SRC L)
+    are left out."""
     dash = "-" * len(MLOG_HEAD)
-    out = [f"# MATCH LOG  (month {month}; account and base updates excluded)", paint(MLOG_HEAD), dash]
-    rows = [e for e in logs if e.src == SRC_MATCH]
+    out = [f"# MATCHES  ({month}, last {LOG_RECENT})", paint(MLOG_HEAD), dash]
+    rows = [e for e in logs if e.src == SRC_MATCH][-LOG_RECENT:]
     for e in rows:
-        out.append(f"{e.date:<16} | {e.legend:<{LEG_W}} | " + rep_cells([0, e.kills, e.wins]))
+        out.append(f"{e.date:<16} | {e.legend:<{LEG_W}} | " + red(num(e.kills, 6)) + " | " + green(num(e.wins, 5)))
     if not rows:
         out.append("(no matches logged this month)")
     out.append("=" * len(MLOG_HEAD))
-    return "\n".join(out) + "\n"
+    return out
 
 
-LLOG_HEAD = f"{'DATE':<16} | {'LEVEL':>7} | {'CHANGE':>7}"
-
-
-def level_log(month, logs, lv):
-    """'logl': every recorded level, oldest first: the carried @LV days of earlier months (last
-    level per day) and each current-month entry with a level, with the change from the row before."""
-    dash = "-" * len(LLOG_HEAD)
-    out = [f"# LEVEL HISTORY  (month {month}; earlier months: last level per day)", LLOG_HEAD, dash]
-    prev = None
+def level_log(logs, lv):
+    """Right table of 'log' (lines): the last LOG_RECENT recorded levels, oldest first: the carried
+    @LV days of earlier months and each current-month entry with a level, with the change from
+    the level before."""
+    rows, prev = [], None
     for when, n in list(lv) + [(e.date, e.level) for e in logs if e.level]:
         change = f"{n - prev:+,}" if prev is not None else "-"
-        out.append(f"{when:<16} | " + orange(num(n, 7)) + " | " + orange(f"{change:>7}"))
+        rows.append(f"{when[:10]:<10} | " + orange(num(n, 6)) + " | " + orange(f"{change:>6}"))
         prev = n
-    if prev is None:
-        out.append("(no level recorded yet)")
-    out.append("=" * len(LLOG_HEAD))
-    return "\n".join(out) + "\n"
+    dash = "-" * len(LLOG_HEAD)
+    return ([f"# LEVELS  (last {LOG_RECENT})", LLOG_HEAD, dash] + (rows[-LOG_RECENT:] or ["(no level recorded yet)"]) +
+            ["=" * len(LLOG_HEAD)])
 
 
 def log_text(d):
+    """'log': recent matches on the left, recent levels on the right."""
     cur, _, m = load_current(d)
-    return match_log(cur, m.logs)
-
-
-def logl_text(d):
-    cur, _, m = load_current(d)
-    return level_log(cur, m.logs, m.lv)
+    return "\n".join(side_by_side(match_log(cur, m.logs), level_log(m.logs, m.lv), gap=3)) + "\n"
 
 
 VIEWS = {"report": report_text, "l": legend_text, "k": kills_text, "w": wins_text,
-         "m": m_text, "lv": lv_text, "log": log_text, "logl": logl_text,
+         "m": m_text, "lv": lv_text, "log": log_text,
          "lw": lambda d: legend_text(d, "w"), "la": lambda d: legend_text(d, "a"), "lm": lambda d: legend_text(d, "m")}

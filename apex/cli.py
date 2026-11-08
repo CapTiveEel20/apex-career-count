@@ -11,7 +11,7 @@ from apex.display.messages import fmt_saved, fmt_totals
 from apex.services.account import account_cmd, accountl_cmd
 from apex.services.bases import base_cmd
 from apex.services.entries import save_log, save_quick, undo
-from apex.ui.menus import quick_guide
+from apex.ui.menus import help_text
 from apex.ui.reports import VIEWS, legend_text
 from apex.ui.repl import confirm_lower, interactive
 
@@ -36,19 +36,18 @@ USAGE_UNDO = ("python apex_stats.py undo   # remove the most recently added entr
 USAGE_ACCOUNT = ('python apex_stats.py account [<kills> <wins> [level]] [--date "YYYY-MM-DD[ HH:MM]"]'
                  "   # show the totals; 1st time: save them; then: log the gain (new - saved), no legend; "
                  "level = also set the account level; lower values ask y/n")
-USAGE_LOG = "python apex_stats.py log   # this month's match entries (account and base updates excluded)"
-USAGE_LOGL = "python apex_stats.py logl   # level history: this month's level updates + earlier days"
+USAGE_LOG = "python apex_stats.py log   # recent matches and recent levels, side by side"
 USAGE_BASE = ('python apex_stats.py base [<legend> <kills> <wins>] [--date "YYYY-MM-DD[ HH:MM]"]'
               "   # list; 1st time: set a legend's all-time totals; then: log the gain (0 0 removes); "
               "lower values ask y/n")
 USAGE_DIR = "python apex_stats.py --dir <path> ...   # data folder; default is ./apex_data next to the script"
 USAGE_REPL = ("python apex_stats.py   # interactive mode: '<kills> [wins] [legend]', '<kills> <legend>', "
               "'<n>l', "
-              "'<n>k', '<n>w' per line, account/accountl/base, report/m/l/lw/la/lm/ls/lv/k/w/log/logl/undo/c, "
+              "'<n>k', '<n>w' per line, account/accountl/base, report/m/l/lw/la/lm/ls/lv/k/w/log/undo/help, "
               "'date YYYY-MM-DD' / 'date today', sticky legend, empty line to quit")
-USAGE_C = "python apex_stats.py c   # help menu"
+USAGE_HELP = "python apex_stats.py help   # what each command does"
 USAGE = "\n  " + "\n  ".join((USAGE_ADD, USAGE_NUM, USAGE_REPORT, USAGE_M, USAGE_L, USAGE_LV, USAGE_K, USAGE_W,
-                              USAGE_LOG, USAGE_LOGL, USAGE_UNDO, USAGE_ACCOUNT, USAGE_ACCOUNTL, USAGE_BASE, USAGE_C,
+                              USAGE_LOG, USAGE_UNDO, USAGE_ACCOUNT, USAGE_ACCOUNTL, USAGE_BASE, USAGE_HELP,
                               USAGE_DIR, USAGE_REPL))
 # Next to apex_stats.py (the parent of this package), or next to the executable when frozen
 # (PyInstaller unpacks the package into a temp dir)
@@ -140,8 +139,8 @@ def cmd_base(a):
         sys.exit(paint(str(e)))
 
 
-def cmd_c(_a):
-    print(quick_guide(), end="")
+def cmd_help(_a):
+    print(help_text(), end="")
 
 
 def cmd_undo(a):
@@ -168,7 +167,7 @@ def main():
     ap.add_argument("--dir", metavar="<path>", default=DEFAULT_DIR,
                     help="data folder (default: ./apex_data next to the script)")
     sp = ap.add_subparsers(dest="cmd", required=True,
-                           metavar="{add,report,m,l,lw,la,lm,ls,lv,k,w,log,logl,undo,account,accountl,base,c}")
+                           metavar="{add,report,m,l,lw,la,lm,ls,lv,k,w,log,undo,account,accountl,base,help}")
     p = sp.add_parser("add", prog="apex_stats.py add", usage="\n  " + USAGE_ADD,
                       help="record a match (kills, wins, legend)")
     p.add_argument("values", nargs="+", metavar="<kills> [wins] [legend] | <kills> <legend>",
@@ -186,8 +185,7 @@ def main():
                              ("lv", USAGE_LV, "levels gained (report only)"),
                              ("k", USAGE_K, "kills per legend (month, semiannual, annual, all-time)"),
                              ("w", USAGE_W, "wins per legend (month, semiannual, annual, all-time)"),
-                             ("log", USAGE_LOG, "this month's matches (no account/base updates)"),
-                             ("logl", USAGE_LOGL, "level history (this month + earlier days)")):
+                             ("log", USAGE_LOG, "recent matches and recent levels, side by side")):
         sp.add_parser(name, prog=f"apex_stats.py {name}", usage="\n  " + usage,
                       help=hlp).set_defaults(fn=cmd_view)
     p = sp.add_parser("ls", prog="apex_stats.py ls", usage="\n  " + USAGE_L,
@@ -213,7 +211,7 @@ def main():
                    help="legend and its all-time kills and wins (omit to list them)")
     p.add_argument("--date", metavar='"YYYY-MM-DD[ HH:MM]"', help="date of the logged gain (default: now)")
     p.set_defaults(fn=cmd_base)
-    sp.add_parser("c", prog="apex_stats.py c", usage="\n  " + USAGE_C,
-                  help="help menu").set_defaults(fn=cmd_c)
+    sp.add_parser("help", prog="apex_stats.py help", usage="\n  " + USAGE_HELP,
+                  help="what each command does").set_defaults(fn=cmd_help)
     a = ap.parse_args(argv)
     a.fn(a)
