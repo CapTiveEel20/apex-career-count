@@ -1,13 +1,13 @@
-"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, m, g, log (each reads the current
+"""Read-only views: report, l / lw / la / lm / ls <name>, k, w, g, log (each reads the current
 file once)."""
 from datetime import date, datetime, timedelta
 from operator import attrgetter
 
-from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_GAMES, TOP_MATCHES, TOP_MONTH_BESTS
+from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_GAMES, TOP_MONTH_BESTS
 from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, monthly_bests, top_matches
 from apex.core.levels import first_level
 from apex.core.records import LevelDay
-from apex.display.colors import green, magenta, orange, paint, red
+from apex.display.colors import green, orange, paint, red
 from apex.display.messages import account_line
 from apex.display.tables import LREP_HEAD, REP_NAMES, num, rep_cells, side_by_side, vals_cells
 from apex.storage.account_file import load_acct, load_account
@@ -156,37 +156,14 @@ def legend_text(d, sort="k", search=None):
 
 def kills_text(d):
     cur, _, m = load_current(d)
-    acc, bases = load_acct(d)
-    return account_line(acc, "kills") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "kills", bases)
+    data = load_acct(d)
+    return account_line(data.account, "kills") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "kills", data.bases)
 
 
 def wins_text(d):
     cur, _, m = load_current(d)
-    acc, bases = load_acct(d)
-    return account_line(acc, "wins") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "wins", bases)
-
-
-BEST_HEAD = f"{'#':<2} | {'DATE':<16} | {'LEGEND':<{LEG_W}} | " + vals_cells(REP_NAMES, REP)
-
-
-def best_matches(top):
-    """The all-time leaderboard of single matches by kills (rows from top_matches)."""
-    dash = "-" * len(BEST_HEAD)
-    out = [paint(f"# TOP {TOP_MATCHES} ALL-TIME HIGHEST KILL MATCHES"), paint(BEST_HEAD), dash]
-    for i, r in enumerate(top, 1):
-        out.append(f"{i:<2} | {r.date:<16} | {r.legend:<{LEG_W}} | " + rep_cells(r))
-    if not top:
-        out.append("(no matches with kills logged yet)")
-    out.append("=" * len(BEST_HEAD))
-    return "\n".join(out) + "\n"
-
-
-def m_text(d):
-    """This month's kills and wins, then the all-time highest-kill matches."""
-    cur, _, m = load_current(d)
-    t = log_agg(m.logs)
-    return (f"MONTH {cur}  |  " + paint(f"KILLS {t.kills:,}  |  WINS {t.wins:,}") + "\n\n" +
-            best_matches(top_matches(m.top, m.logs)))
+    data = load_acct(d)
+    return account_line(data.account, "wins") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "wins", data.bases)
 
 
 def game_table(title, when_head, when_w, rows, when, empty):
@@ -196,8 +173,7 @@ def game_table(title, when_head, when_w, rows, when, empty):
     out = [title, paint(head), "-" * len(head)]
     for i, r in enumerate(rows, 1):
         win = green(f"{'W':<3}") if r.wins > 0 else red(f"{'L':<3}")
-        out.append(f"{i:<2} | " + red(num(r.kills, 6)) + f" | {win} | " + magenta(f"{r.legend:<{LEG_W}}") +
-                   f" | {when(r):<{when_w}}")
+        out.append(f"{i:<2} | " + red(num(r.kills, 6)) + f" | {win} | {r.legend:<{LEG_W}} | {when(r):<{when_w}}")
     return out + ([] if rows else [empty]) + ["=" * len(head)]
 
 
@@ -264,5 +240,5 @@ def log_text(d):
 
 
 VIEWS = {"report": report_text, "l": legend_text, "k": kills_text, "w": wins_text,
-         "m": m_text, "g": games_text, "log": log_text,
+         "g": games_text, "log": log_text,
          "lw": lambda d: legend_text(d, "w"), "la": lambda d: legend_text(d, "a"), "lm": lambda d: legend_text(d, "m")}

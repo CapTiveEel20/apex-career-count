@@ -34,7 +34,7 @@ SRC_MATCH, SRC_ACCOUNT, SRC_BASE, SRC_LEVEL = "M", "A", "B", "L"
 # Hidden command aliases (alias -> command), accepted by the REPL but never shown in any help, menu
 # or document
 ALIASES = {"duno": "undo"}
-TOP_MATCHES = 5  # size of the all-time highest-kill matches leaderboard ('m')
+TOP_MATCHES = 5  # size of the all-time highest-kill matches leaderboard (@TK header)
 TOP_GAMES = 10  # size of the current month's best games ('g', left table)
 TOP_MONTH_BESTS = 6  # size of the all-time monthly bests ('g', right table)
 ABORTED = "Aborted: nothing changed."  # a lowering of account, base or level was not confirmed

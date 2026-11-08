@@ -6,7 +6,7 @@ together (nothing is written if the block raises). Commands never touch the file
 import os
 from datetime import datetime
 
-from apex.config import ACC_TAG, DFMT, SRC_ACCOUNT
+from apex.config import ACC_TAG, ACCOUNT_FILE, DFMT, SRC_ACCOUNT
 from apex.core.levels import latest_level
 from apex.core.parsing import parse_when
 from apex.core.records import Change, Month, Stored
@@ -25,7 +25,7 @@ class Ledger:
     def __init__(self, d, when=None):
         self.d, self._when, self._dt = d, when, None
         self._month, self._m, self._text = "", None, None  # month name, its Month, its text on disk
-        self._account, self._bases, self._acct_read = None, None, False
+        self._account, self._bases, self._damaged, self._acct_read = None, None, [], False
         self._month_dirty = self._acct_dirty = False
 
     def __enter__(self):
@@ -86,7 +86,11 @@ class Ledger:
 
     def _read_acct(self):
         if not self._acct_read:
-            self._account, self._bases = load_acct(self.d)
+            data = load_acct(self.d)
+            if data.account_damaged:  # unknown totals must not be saved over, or treated as never set
+                raise ValueError(f"Error: the {ACC_TAG} line of {ACCOUNT_FILE} is damaged; "
+                                 "fix it by hand. Nothing was saved.")
+            self._account, self._bases, self._damaged = data
             self._acct_read = True
 
     @property
@@ -186,7 +190,7 @@ class Ledger:
             text = render(self._month, m) if m.has_records else None
             changes.append(FileChange(month_path(self.d, self._month), text, self._text))
         if self._acct_dirty:
-            changes.append(FileChange(account_path(self.d), render_acct(self._account, self._bases), None))
+            changes.append(FileChange(account_path(self.d), render_acct(self._account, self._bases, self._damaged), None))
         if not changes:
             return
         try:

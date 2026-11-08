@@ -16,14 +16,16 @@ class InputError(ValueError):
 def parse_quick(tokens):
     """A quick entry -> (token, legend or None); None if tokens are not one. Only <n>k / <n>w
     take an optional legend after them ("5k wraith"); "3l" never takes one.
-    ValueError (from parse_legend) for a number among the legend tokens."""
+    ValueError for anything after "3l" and (from parse_legend) for a number among the legend tokens."""
     head = tokens[0]
     m = QUICK_RE.match(head)
     if not m:
         return None
     if len(tokens) == 1:
         return head, None
-    return (head, parse_legend(tokens[1:])) if m.group(2).lower() in "kw" else None
+    if m.group(2).lower() == "l":
+        raise ValueError("Error: <n>l takes no legend or other input (e.g. 3l).")
+    return head, parse_legend(tokens[1:])
 
 
 def to_int(s):
@@ -34,6 +36,19 @@ def to_int(s):
 def clean(s, w):
     s = (s or "").replace("|", "/").strip().capitalize()[:w]
     return s or NO_LEGEND
+
+
+def resolve_legend(name, known):
+    """The known legend a typed name stands for (any case): an exact match wins, then the only legend
+    starting with it. None if there is none; ValueError if several start with it."""
+    name = name.lower()
+    hits = sorted(leg for leg in known if leg.lower().startswith(name))
+    exact = [leg for leg in hits if leg.lower() == name]
+    if exact:
+        return exact[0]
+    if len(hits) > 1:
+        raise ValueError(f"Error: '{name}' matches several legends ({', '.join(hits)}); type more letters.")
+    return hits[0] if hits else None
 
 
 def parse_legend(tokens):

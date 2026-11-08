@@ -5,7 +5,7 @@ input/print loop and every rule can be exercised without a terminal.
 """
 from datetime import datetime
 
-from apex.config import ALIASES, DEFAULT_DIR, LEG_W, NO_LEGEND
+from apex.config import ALIASES, DAY_FMT, DEFAULT_DIR, LEG_W, NO_LEGEND
 from apex.core.parsing import InputError, clean, parse_day, parse_match, parse_quick
 from apex.display.colors import paint, setup
 from apex.display.messages import fmt_saved, fmt_totals
@@ -17,13 +17,23 @@ from apex.ui.menus import help_text, quick_guide
 from apex.ui.reports import VIEWS, legend_text
 
 
-def confirm_lower():
-    """Ask before an absolute value goes down: only 'y' proceeds (end of input or Ctrl+C = no)."""
+def _ask(prompt):
+    """A y/n question: only 'y' proceeds (end of input or Ctrl+C = no)."""
     try:
-        return input("Warning: New value is lower than current. Proceed? (y/n): ").strip() == "y"
+        return input(prompt).strip() == "y"
     except (EOFError, KeyboardInterrupt):
         print()
         return False
+
+
+def confirm_lower():
+    """Ask before an absolute value goes down."""
+    return _ask("Warning: New value is lower than current. Proceed? (y/n): ")
+
+
+def confirm_new_legend(name):
+    """Ask before a match creates a legend nobody knows yet."""
+    return _ask(f"Unknown legend '{name}'. Create new? (y/n): ")
 
 
 class Sticky:
@@ -55,8 +65,9 @@ class Sticky:
 class Session:
     """One interactive session: data folder, active date (None = system date) and sticky legend."""
 
-    def __init__(self, d, confirm=confirm_lower):
+    def __init__(self, d, confirm=confirm_lower, confirm_legend=confirm_new_legend):
         self.d, self.day, self.sticky, self.confirm = d, None, Sticky(), confirm
+        self.confirm_legend = confirm_legend
 
     @property
     def prompt(self):
@@ -65,13 +76,16 @@ class Session:
 
     def handle(self, line):
         """Run one non-empty input line; returns the text to print. Unrecognized or malformed input
-        answers with the quick guide, a broken rule with its error message."""
+        answers with the quick guide, a broken rule with its error message; a data file that cannot
+        be read (locked, no permission) with an error, and the session goes on."""
         try:
             return self._run(line.strip())
         except InputError:
             return quick_guide()
         except ValueError as e:
             return paint(str(e)) + "\n"
+        except OSError as e:
+            return f"Error: could not read the data files ({e}).\n"
 
     def _run(self, line):
         parts = line.split()
@@ -103,17 +117,14 @@ class Session:
         quick = parse_quick(parts)
         if quick:  # 3l (never a legend); 5k, 1w [legend] (typed legend, else the pinned one)
             token, typed = quick
-            legend = typed if typed is not None else self.sticky.legend  # a typed legend leaves sticky as is
-            saved = save_quick(self.d, token, when, legend)
-        else:  # anything else must be a match: <kills>, <kills> <wins> [legend] or <kills> <legend> (1 win)
-            try:
-                kills, wins, typed = parse_match(parts)
-            except ValueError:
-                raise InputError() from None
             legend = typed if typed is not None else self.sticky.legend
-            saved = save_match(self.d, kills, wins, legend, when)
-            if typed is not None:
-                self.sticky.typed(saved.entry.legend)
+            saved = save_quick(self.d, token, when, legend, self.confirm_legend)
+        else:  # anything else must be a match: <kills>, <kills> <wins> [legend] or <kills> <legend> (1 win)
+            kills, wins, typed = parse_match(parts)
+            legend = typed if typed is not None else self.sticky.legend
+            saved = save_match(self.d, kills, wins, legend, when, self.confirm_legend)
+        if typed is not None:  # a typed "-" unlocks the sticky legend; any other leaves it as is
+            self.sticky.typed(saved.entry.legend)
         return fmt_saved(saved.entry, saved.level) + "\n" + fmt_totals(saved.totals)
 
     def _pin(self, name):
@@ -127,9 +138,12 @@ class Session:
         if len(parts) != 2:
             raise InputError()
         try:
-            self.day = None if parts[1].lower() == "today" else parse_day(parts[1])
+            day = None if parts[1].lower() == "today" else parse_day(parts[1])
         except ValueError:
             raise InputError() from None
+        if day and day > datetime.now().strftime(DAY_FMT):  # a future month would close the current one
+            raise ValueError(f"Error: {day} is in the future; the active date did not change.")
+        self.day = day
         return f"  Active date: {self.day or 'today (system)'}\n"
 
 

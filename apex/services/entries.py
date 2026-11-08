@@ -2,10 +2,10 @@
 commands built on them (save_match, save_quick) and the LIFO undo."""
 from typing import NamedTuple, Optional
 
-from apex.config import LEG_W, NO_LEGEND, SRC_LEVEL, SRC_MATCH
+from apex.config import ABORTED, LEG_W, NO_LEGEND, SRC_LEVEL, SRC_MATCH
 from apex.core.aggregates import legend_totals
 from apex.core.levels import check_later, last_level
-from apex.core.parsing import QUICK_RE, clean
+from apex.core.parsing import QUICK_RE, clean, resolve_legend
 from apex.core.records import Entry, MatchTotals, Stored, Tally
 from apex.display.messages import fmt_undo, logs_word
 from apex.storage.ledger import Ledger
@@ -57,10 +57,25 @@ def record_level(ledger, level):
     return rec
 
 
-def save_match(d, kills, wins, legend=None, when=None):
-    """Save one match on its own. Returns Saved."""
+def _match_legend(ledger, legend, confirm_legend):
+    """The legend a match is saved under: a known one (a base or any logged legend) by exact name or
+    prefix; a name nobody knows only if confirm_legend(name) agrees, else ValueError(ABORTED)."""
+    name = clean(legend, LEG_W)
+    if name == NO_LEGEND:
+        return name
+    m = ledger.current
+    known = resolve_legend(name, set(ledger.bases) | set(legend_totals(m.hl, m.logs)))
+    if known:
+        return known
+    if not confirm_legend(name):
+        raise ValueError(ABORTED)
+    return name
+
+
+def save_match(d, kills, wins, legend, when, confirm_legend):
+    """Save one match on its own. confirm_legend(name) = may this unknown legend be created? Returns Saved."""
     with Ledger(d, when) as ledger:
-        rec = record_gain(ledger, kills, wins, legend)
+        rec = record_gain(ledger, kills, wins, _match_legend(ledger, legend, confirm_legend))
         return _saved(ledger, rec, _match_totals(ledger, rec))
 
 
@@ -83,18 +98,18 @@ def undo(d):
     return fmt_undo(note, m.last_action(), entry, change, logged)
 
 
-def save_quick(d, token, when=None, legend=None):
+def save_quick(d, token, when, legend, confirm_legend):
     """Quick entries (token already checked by parse_quick): "<n>l" = n more levels, "<n>k" = n kills
-    only, "<n>w" = n wins only. Only quick kills/wins take legend (the REPL's pinned sticky legend);
-    level updates never carry one. Returns Saved."""
+    only, "<n>w" = n wins only. Only quick kills/wins take legend (typed, or the REPL's pinned sticky
+    legend; see save_match for confirm_legend); level updates never carry one. Returns Saved."""
     match = QUICK_RE.match(token)
     n, kind = int(match.group(1)), match.group(2).lower()
     if n < 1:
         raise ValueError("Error: <n>k, <n>w and <n>l need n of 1 or higher.")
     if kind == "k":
-        return save_match(d, n, 0, legend, when)
+        return save_match(d, n, 0, legend, when, confirm_legend)
     if kind == "w":
-        return save_match(d, 0, n, legend, when)
+        return save_match(d, 0, n, legend, when, confirm_legend)
     with Ledger(d, when) as ledger:
         m = ledger.open_month()
         last = last_level(ledger.stamp, m.logs, m.lv)

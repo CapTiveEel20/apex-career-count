@@ -26,8 +26,9 @@ def quick_guide():
         f" | {red('7')} {green('1')} {note('(')}{red('7k')}{note(', ')}{green('1w')}{note(')')}"
         f" | {cmd('-')} {note('(Unlock)')}\n"
         f" {note('[ TABLES ]')}  {cmd('l')} {note('(Kills)')} | {cmd('lw')} {note('(Wins)')}"
-        f" | {cmd('g')} {note('(Top Games)')} | {cmd('la')} {note('(A-Z)')} |\n"
-        f"             {cmd('lm')} {note('(Recent)')} | {cmd('ls')} <name> {note('(Search)')}\n"
+        f" | {cmd('la')} {note('(A-Z)')} | {cmd('lm')} {note('(Recent)')} |\n"
+        f"             {cmd('ls')} <name> {note('(Search)')} | {cmd('g')} {note('(Top Games)')}"
+        f" | {cmd('k')} | {cmd('w')} {note('(By Period)')}\n"
         f" {note('[ SYSTEM ]')}  {cmd('report')} | {cmd('undo')} | {cmd('date')} YYYY-MM-DD | {cmd('date today')}"
         f" | {cmd('help')}\n"
         f"{dashes}\n"
@@ -64,7 +65,6 @@ def help_text():
             (c("lm"), "Same, most recent match first"),
             (f"{c('ls')} <name>", "Same, only legends matching the name"),
             (f"{c('k')} | {c('w')}", "Kills | wins per legend, by period"),
-            (c("m"), "This month + top 5 matches ever"),
             (c("g"), "Top 10 games this month + monthly bests"),
             (c("log"), "Recent matches and recent levels"))),
         (gray("[ SYSTEM ]"), (
@@ -81,5 +81,6 @@ def help_text():
             left = tag + " " * (11 - visible_len(tag)) if i == 0 else " " * 11
             out.append(f" {left} {cell}{' ' * (HELP_CMD_W - visible_len(cell))} {gray(what)}")
     out += ["-" * 79,
-            " " + gray("Lowering an account, base or level value asks y/n first.")]
+            " " + gray("Lowering an account, base or level value asks y/n first."),
+            " " + gray("Legend names can be shortened (wra = Wraith); a new name asks y/n first.")]
     return "\n".join(out) + "\n"

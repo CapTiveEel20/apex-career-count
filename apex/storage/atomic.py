@@ -16,6 +16,8 @@ class FileChange(NamedTuple):
 def _write_tmp(path, text):
     with open(path + TMP, "w", encoding="utf-8") as f:
         f.write(text)
+        f.flush()
+        os.fsync(f.fileno())  # on disk before the swap: a power cut cannot leave a partial file
 
 
 def _put_back(c):
