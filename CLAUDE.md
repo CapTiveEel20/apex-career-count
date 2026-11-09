@@ -24,7 +24,7 @@ Standard library only. **Layers (import downward only):** `config` â†’ `core` â†
 | `apex/display` | `colors`, `tables`, `messages` |
 | `apex/storage` | `ledger`, `monthly_file`, `account_file`, `atomic` |
 | `apex/services` | `entries`, `account`, `bases` |
-| `apex/ui` | `repl` (`Session`), `reports` (read-only views, `VIEWS`), `menus` |
+| `apex/ui` | `repl` (`Session`), `reports` (read-only views, `VIEWS`), `menus`, `screen` (centered terminal output) |
 
 - **Records:** typed in `core/records.py` (`Tally`, `Stored`, `TopMatch`, `LevelDay`, `Periods`, `LegendRow`, `MatchTotals`, `Quick`, `Entry`, `Change`, `Month`). Use named fields, never positional indexes.
 - **Colors:** managed strictly in `apex.display.colors`. Never import the `COLOR` boolean directly. `red` = kills, `green` = wins, `orange` (`\033[38;5;208m`) = levels. `cyan` / `purple` (`\033[38;5;93m`) / `blue` are for category tags only, everywhere (menu, `help`, undo, `TOTALS`): `[ACCOUNT...]` purple, `[MATCH]` cyan, `[BASE...]` blue.
@@ -44,6 +44,7 @@ Standard library only. **Layers (import downward only):** `config` â†’ `core` â†
 ## 4. REPL
 - Always starts `interactive()`. Exits only on empty Enter (no `q`). No `logs` command (`log` exists). No `m`, `lv` or `lk` command.
 - Unrecognized input shows the main menu. A data file that cannot be read answers with an error; the session goes on.
+- **Centering (`ui/screen.py`):** only `interactive()` goes through `Screen`; `Session.handle` and the views return plain, uncentered text. Each block is centered by its widest line (`center_block`), so tables stay aligned; prompts start at the left edge of the 79-column UI (`UI_WIDTH`). Page dividers (a line of only `=` or `-`, exactly `UI_WIDTH` wide: main menu and `help`) are stretched or cut to the terminal width, and the title between two of them is centered on its own; table rules keep the width of their tables. A watcher thread polls the width (`POLL_SECONDS`); when it changes and holds still, the window and its scrollback are cleared and the session so far is redrawn (last `HISTORY` items). A half-typed line is emptied by a redraw (`_press_escape`), because it would otherwise stay in the input while no longer visible. Output that is not a terminal stays plain; without ANSI (`NO_COLOR`) text is centered when printed but does not follow a resize. All input goes through `Screen.read` (`confirm_lower(read)`, `confirm_new_legend(name, read)`).
 - `date <day>` rejects future days (the active date stays). A record dated before the newest file's month is refused (closed month).
 - **Sticky legend:** OFF by default. `p <name>` locks a legend set with `base` (missing/unknown name: error, nothing changes). The locked legend applies to matches without a legend AND to `<n>k [<n>w] [<n>l]` without one (`save_quick(..., legend)`). While it is locked, a number alone = wins 1, the same as `<kills> <legend>` (`parse_match(..., pinned=)`); `<kills> 0` saves no win. A legend typed in an entry is used instead (Legend Resolution) and leaves the lock unchanged. A typed `-` legend (matches and quick entries), or `-` alone on a line (saves nothing), unpins it and turns it OFF. Level-only entries (`<n>l`, `accountl <n>`) never take a legend.
 

@@ -1,7 +1,13 @@
 """The main menu (quick_guide: when the REPL starts and on unrecognized input) and the 'help' screen."""
+from apex.config import UI_WIDTH
 from apex.display.colors import blue, cyan, gray, green, orange, purple, red, steel, visible_len, yellow
 
 HELP_CMD_W = 23  # visible width of the command column of the help screen
+
+
+def _title(text):
+    """text in the title color, centered in the UI column."""
+    return " " * ((UI_WIDTH - len(text)) // 2) + yellow(text)
 
 
 def quick_guide():
@@ -13,7 +19,7 @@ def quick_guide():
     equals, dashes = "=" * 79, "-" * 79
     return (
         f"\n{equals}\n"
-        f"                           {yellow('APEX CAREER COUNT')}\n"
+        f"{_title('APEX CAREER COUNT')}\n"
         f"{equals}\n"
         f" {purple('[ ACCOUNT ]')} {cmd('account')} {k} {w} {orange('[lvl]')} {note('(Sets/Syncs totals)')}"
         f" | {cmd('accountl')} {lvl} {note('(Level)')}\n"
@@ -78,7 +84,7 @@ def help_text():
             (c("help"), "This screen"))),
     )
     equals = "=" * 79
-    out = ["", equals, f"                       {yellow('APEX CAREER COUNT - HELP')}", equals]
+    out = ["", equals, _title("APEX CAREER COUNT - HELP"), equals]
     for tag, rows in sections:
         for i, (cell, what) in enumerate(rows):
             left = tag + " " * (11 - visible_len(tag)) if i == 0 else " " * 11

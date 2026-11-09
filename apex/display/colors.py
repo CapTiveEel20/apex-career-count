@@ -41,6 +41,11 @@ def setup():
     COLOR = init_color()
 
 
+def active():
+    """True if this run writes ANSI codes (decided by setup)."""
+    return COLOR
+
+
 def _on(color):
     return COLOR if color is None else color
 

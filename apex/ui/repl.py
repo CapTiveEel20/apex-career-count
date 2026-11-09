@@ -15,25 +15,26 @@ from apex.services.entries import save_match, save_quick, undo
 from apex.storage.account_file import load_acct
 from apex.ui.menus import help_text, quick_guide
 from apex.ui.reports import VIEWS, legend_text
+from apex.ui.screen import terminal_screen
 
 
-def _ask(prompt):
-    """A y/n question: only 'y' proceeds (end of input or Ctrl+C = no)."""
+def _ask(prompt, read=None):
+    """A y/n question: only 'y' proceeds (end of input or Ctrl+C = no). read = how to ask (default input)."""
     try:
-        return input(prompt).strip() == "y"
+        return (read or input)(prompt).strip() == "y"
     except (EOFError, KeyboardInterrupt):
         print()
         return False
 
 
-def confirm_lower():
+def confirm_lower(read=None):
     """Ask before an absolute value goes down."""
-    return _ask("Warning: New value is lower than current. Proceed? (y/n): ")
+    return _ask("Warning: New value is lower than current. Proceed? (y/n): ", read)
 
 
-def confirm_new_legend(name):
+def confirm_new_legend(name, read=None):
     """Ask before a match creates a legend nobody knows yet."""
-    return _ask(f"Unknown legend '{name}'. Create new? (y/n): ")
+    return _ask(f"Unknown legend '{name}'. Create new? (y/n): ", read)
 
 
 class Sticky:
@@ -149,14 +150,19 @@ class Session:
 
 def interactive(d=DEFAULT_DIR):
     setup()
-    print(quick_guide(), end="")
-    session = Session(d)
-    while True:
-        try:
-            line = input(session.prompt).strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            break
-        if not line:  # only an empty line quits
-            break
-        print(session.handle(line), end="")
+    screen = terminal_screen()
+    screen.show(quick_guide())
+    session = Session(d, confirm=lambda: confirm_lower(screen.read),
+                      confirm_legend=lambda name: confirm_new_legend(name, screen.read))
+    try:
+        while True:
+            try:
+                line = screen.read(session.prompt).strip()
+            except (EOFError, KeyboardInterrupt):
+                print()
+                break
+            if not line:  # only an empty line quits
+                break
+            screen.show(session.handle(line))
+    finally:
+        screen.stop()
