@@ -1,5 +1,33 @@
 """Account-level rules: the current and last recorded level, the check against later levels; @LV pruning
 keeps one baseline day (no I/O)."""
+from apex.config import LEVELS_PER_TIER
+
+
+def absolute_level(level, tier):
+    """The absolute level of a level within a tier (200 in tier 2 = 700)."""
+    return (tier - 1) * LEVELS_PER_TIER + level
+
+
+def _level_parts(level):
+    """(level within its tier, tier) of an absolute level of 1 or higher."""
+    tier = (level - 1) // LEVELS_PER_TIER + 1
+    return level - (tier - 1) * LEVELS_PER_TIER, tier
+
+
+def level_name(level):
+    """'Level 200 Tier 2' for the absolute level 700; 'Level -' for 0 (none recorded)."""
+    if not level:
+        return "Level -"
+    n, tier = _level_parts(level)
+    return f"Level {n} Tier {tier}"
+
+
+def level_short(level):
+    """'200 T2' for the absolute level 700, for narrow table columns; '-' for 0."""
+    if not level:
+        return "-"
+    n, tier = _level_parts(level)
+    return f"{n} T{tier}"
 
 
 def _last_of(entries, lv):
@@ -34,7 +62,7 @@ def check_later(level, stamp, logs):
     if after:
         nxt, when = min(after)
         if level > nxt:
-            raise ValueError(f"Error: level {level:,} is higher than level {nxt:,} recorded later ({when}).")
+            raise ValueError(f"Error: {level_name(level)} is higher than {level_name(nxt)} recorded later ({when}).")
 
 
 def prune_lv(lv, cutoff):

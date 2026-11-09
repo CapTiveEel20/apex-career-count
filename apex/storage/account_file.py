@@ -9,6 +9,7 @@ import sys
 from typing import NamedTuple, Optional
 
 from apex.config import ACC_TAG, ACCOUNT_FILE, BASE_TAG, LEG_W
+from apex.core.parsing import title_case
 from apex.core.records import Stored
 
 
@@ -41,7 +42,7 @@ def load_acct(d):
                     if tag == ACC_TAG:
                         acc = Stored(int(c[1]), int(c[2]), c[3].strip() if len(c) > 3 else "")
                     elif tag == BASE_TAG:
-                        bases[c[1].strip()] = Stored(int(c[2]), int(c[3]), c[4].strip() if len(c) > 4 else "")
+                        bases[title_case(c[1])] = Stored(int(c[2]), int(c[3]), c[4].strip() if len(c) > 4 else "")
                     elif tag == "@BAD":
                         damaged.append(line.split("|", 1)[1].strip())
                 except (ValueError, IndexError):

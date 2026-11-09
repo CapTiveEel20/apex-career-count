@@ -1,11 +1,12 @@
 """Short terminal messages: the account-totals line, the SAVED confirmation and the undo report."""
 from apex.config import SRC_ACCOUNT, SRC_BASE
+from apex.core.levels import level_name
 from apex.display.colors import blue, cyan, green, orange, paint, purple, red
 
 
 def level_txt(level):
-    """'LEVEL <n>' all orange (word and number); 'LEVEL -' when no level is recorded (0)."""
-    return orange(f"LEVEL {level:,}" if level else "LEVEL -")
+    """'Level <n> Tier <t>' all orange; 'Level -' when no level is recorded (0)."""
+    return orange(level_name(level))
 
 
 def account_line(acc, which="both", level=None):
@@ -28,7 +29,7 @@ def fmt_saved(rec, level=None):
     """SAVED line of an Entry. Level-only updates show their level and day; matches show the current
     account level (level = latest recorded, Saved.level; None = the entry's own level; 0 = '-')."""
     if rec.level_only:
-        return "SAVED - " + orange(f"LEVEL {rec.level:,}") + f" ({rec.date[:10]})"
+        return "SAVED - " + level_txt(rec.level) + f" ({rec.date[:10]})"
     lvl = rec.level if level is None else level
     return (f"SAVED  {rec.legend}  " + paint(f"KILLS {rec.kills:,}  WINS {rec.wins:,}") +
             "  " + level_txt(lvl) + f"  ({rec.date})")
@@ -46,7 +47,7 @@ def fmt_totals(totals):
 
 def entry_line(e):
     """One log entry as undo shows it: date | legend | wins | kills | level."""
-    return f"{e.date} | {e.legend} | " + paint(f"WINS {e.wins:,} | KILLS {e.kills:,}") + " | " + orange(f"LEVEL {e.level:,}")
+    return f"{e.date} | {e.legend} | " + paint(f"WINS {e.wins:,} | KILLS {e.kills:,}") + " | " + level_txt(e.level)
 
 
 def kw_values(kills, wins, sign=""):
@@ -64,9 +65,9 @@ def fmt_previous(entry, change):
     if entry and entry.src == SRC_BASE:  # base gain, logged for its legend
         return blue("[BASE UPDATE]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins, "+")
     if entry and entry.level_only:
-        return orange("[LEVEL UPDATE]") + f" {entry.date} | " + orange(f"LEVEL {entry.level:,}")
+        return orange("[LEVEL UPDATE]") + f" {entry.date} | " + level_txt(entry.level)
     if entry:
-        level = " | " + orange(f"LEVEL {entry.level:,}") if entry.level else ""
+        level = " | " + level_txt(entry.level) if entry.level else ""
         return cyan("[MATCH]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins) + level
     old = change.old
     was = kw_values(old.kills, old.wins) if old else None

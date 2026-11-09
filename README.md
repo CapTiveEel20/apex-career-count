@@ -30,7 +30,7 @@ pyinstaller --onefile --distpath . apex_career_count.py
 > account 15000 900 700      ← your current kills, wins and level
 > base wraith 3000 150       ← a legend's current kills and wins
 > 7 1 wra                    ← a match: 7 kills, 1 win, Wraith
-SAVED  Wraith  KILLS 7  WINS 1  LEVEL 700  (2026-11-09 21:42)
+SAVED  Wraith  KILLS 7  WINS 1  Level 200 Tier 2  (2026-11-09 21:42)
 TOTALS -> [Wraith] K: 3,007 W: 151 | [ACCOUNT] K: 15,007 W: 901
 ```
 
@@ -51,7 +51,7 @@ TOTALS -> [Wraith] K: 3,007 W: 151 | [ACCOUNT] K: 15,007 W: 901
 
 With plain numbers, kills always come first and no level is allowed. To add levels with a match, use `<n>k [<n>w] [<n>l] [legend]`: leave out any you don't need, but keep that order and put the legend last. In this form wins are never added automatically. Adding levels needs a level already recorded (`accountl`), and one `undo` reverts the whole line.
 
-Legend names can be shortened: `7 1 wra` saves Wraith if it is the only known legend starting with `wra`. If several match, type more letters. A name nobody knows asks `Unknown legend '<name>'. Create new? (y/n):`, and anything but `y` saves nothing.
+Every word of a legend name is capitalized (`mad maggie` is saved as `Mad Maggie`). Legend names can be shortened: `7 1 wra` saves Wraith if it is the only known legend starting with `wra`. If several match, type more letters. A name nobody knows asks `Unknown legend '<name>'. Create new? (y/n):`, and anything but `y` saves nothing.
 
 ### Account and legend totals
 
@@ -69,9 +69,15 @@ Every match is added to the account totals and to its legend's totals automatica
 
 | Input | What it does |
 |---|---|
-| `accountl 700` | Sets your account level |
+| `accountl 700` | Sets your account level with the absolute number |
+| `accountl 200 tier 2` | Same level, as level and tier |
+| `accountl 200 2` | Same level, shorter |
 | `3l` | Adds 3 levels (takes no legend on its own) |
 | `5k 3l wraith` | Adds 3 levels together with a match |
+
+Apex levels have 4 tiers of 500 levels each, so an account goes from 1 to 2,000. `account <kills> <wins> [level]` takes the level in the same three forms: `account 15000 900 700`, `account 15000 900 200 tier 2` or `account 15000 900 200 2`. Level and tier work out to `(tier - 1) * 500 + level`, and that absolute number is what is saved.
+
+Levels are shown as `Level 200 Tier 2`. The narrow level column of `log` uses the short form `200 T2`.
 
 > [!NOTE]
 > `account`, `base` and `accountl` ask `Warning: New value is lower than current. Proceed? (y/n):` before lowering a value. Only `y` proceeds. A confirmed lowering logs nothing, and `undo` reverts it.
@@ -97,7 +103,7 @@ The sticky legend is **off** by default. `p <name>` locks a legend already set w
 `undo` reverts the most recent action, whether a match, a level update, a base change or an account change, and restores the previous totals exactly. It works through the newest month's actions, then back into the month before. Each undo shows what the next one would revert:
 
 ```
-Undone: 2026-11-06 21:42 | - | WINS 0 | KILLS 0 | LEVEL 58  (3 logs left in 2026-11)
+Undone: 2026-11-06 21:42 | - | WINS 0 | KILLS 0 | Level 58 Tier 1  (3 logs left in 2026-11)
 PREVIOUS LOG: [MATCH] 2026-11-06 21:41 | Legend: Wraith | KILLS 4 | WINS 1
 ```
 

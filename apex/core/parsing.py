@@ -2,7 +2,8 @@
 import re
 from datetime import datetime
 
-from apex.config import DAY_FMT, DFMT, NO_LEGEND
+from apex.config import DAY_FMT, DFMT, LEVELS_PER_TIER, MAX_LEVEL, MAX_TIER, NO_LEGEND
+from apex.core.levels import absolute_level
 from apex.core.records import Quick
 
 NUM_RE = re.compile(r"^-?(?:\d{1,3}(?:,\d{3})+|\d+)$")  # kills/wins: "15000" or "15,000"
@@ -45,8 +46,31 @@ def to_int(s):
     return int(s.replace(",", ""))
 
 
+def parse_level(tokens):
+    """Level tokens -> the absolute level: '<absolute>', '<level> <tier>' or '<level> tier <tier>'.
+    InputError if they are none of these; ValueError for a value out of range."""
+    if len(tokens) == 3 and tokens[1].lower() == "tier":
+        tokens = [tokens[0], tokens[2]]
+    if len(tokens) not in (1, 2) or not all(NUM_RE.match(t) for t in tokens):
+        raise InputError()
+    if len(tokens) == 1:
+        level = to_int(tokens[0])
+        if not 1 <= level <= MAX_LEVEL:
+            raise ValueError(f"Error: the level must be from 1 to {MAX_LEVEL:,}.")
+        return level
+    level, tier = to_int(tokens[0]), to_int(tokens[1])
+    if not (1 <= level <= LEVELS_PER_TIER and 1 <= tier <= MAX_TIER):
+        raise ValueError(f"Error: use a level from 1 to {LEVELS_PER_TIER} and a tier from 1 to {MAX_TIER} (e.g. 200 tier 2).")
+    return absolute_level(level, tier)
+
+
+def title_case(name):
+    """A legend name with every word capitalized and the rest lowercase: 'mad MAGGIE' -> 'Mad Maggie'."""
+    return " ".join(word.capitalize() for word in name.split())
+
+
 def clean(s, w):
-    s = (s or "").replace("|", "/").strip().capitalize()[:w]
+    s = title_case((s or "").replace("|", "/"))[:w].strip()
     return s or NO_LEGEND
 
 

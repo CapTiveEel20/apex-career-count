@@ -15,7 +15,7 @@ Usage: python apex_career_count.py   (opens the interactive menu; 'help' lists e
 Plain-number matches take no level: everything after kills and wins is the legend, and a number
 there is rejected. A number alone is kills with 0 wins (1 win with a locked legend); "<kills> <legend>"
 (one number, then a legend) is a match with 1 win; with two numbers they are always kills and wins.
-Levels: "accountl 700" = absolute level, "3l" = last recorded level + 3, and "<n>k [<n>w] [<n>l] [legend]"
+Levels (4 tiers of 500, stored as absolute): "accountl 700", "accountl 200 tier 2" or "accountl 200 2", "3l" = last recorded level + 3, and "<n>k [<n>w] [<n>l] [legend]"
 saves kills, wins and levels as one entry (any may be omitted, in that order). SAVED lines of matches show the
 current account level.
 

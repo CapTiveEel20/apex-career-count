@@ -11,11 +11,12 @@ import os
 import sys
 from datetime import timedelta
 
-from apex.config import (AGG, DAY_FMT, FNAME, FOOTER_MARK, FRE, LEG_W, LV_KEEP_DAYS, REF_W, SRC_LEVEL, SRC_MATCH,
+from apex.config import (ACC_TAG, AGG, DAY_FMT, FNAME, FOOTER_MARK, FRE, LEG_W, LV_KEEP_DAYS, REF_W, SRC_LEVEL, SRC_MATCH,
                          TAG_W, YEAR_MONTHS)
 from apex.core.aggregates import (day_levels, ints, last_logged, legend_agg, legend_totals, log_agg, midx,
                                   monthly_bests, top_matches)
 from apex.core.levels import prune_lv
+from apex.core.parsing import title_case
 from apex.core.records import Change, Entry, LevelDay, Month, Stored, TopMatch
 from apex.display.tables import SUM_HEAD, summary, vals_cells
 
@@ -117,7 +118,7 @@ def _entry(c, n):
         src = c[8].strip()
     else:
         src = SRC_LEVEL if not kills and not wins and lvl else SRC_MATCH
-    return Entry(c[1].strip(), c[2].strip(), kills, wins, lvl, lid, acc, src)
+    return Entry(c[1].strip(), title_case(c[2]), kills, wins, lvl, lid, acc, src)
 
 
 def parse(text):
@@ -135,20 +136,21 @@ def parse(text):
             elif k == "@PREV":
                 m.prev.append((c[1].strip(), ints(c[2:])))
             elif k == "@HL":
-                m.hl[c[1].strip()] = ints(c[2:])
+                m.hl[title_case(c[1])] = ints(c[2:])
             elif k == "@PL":
-                m.pl.append((c[1].strip(), c[2].strip(), ints(c[3:])))
+                m.pl.append((c[1].strip(), title_case(c[2]), ints(c[3:])))
             elif k == "@LV":
                 m.lv.append(LevelDay(c[1].strip(), int(c[2])))
             elif k == "@LL":
-                m.ll[c[1].strip()] = c[2].strip()
+                m.ll[title_case(c[1])] = c[2].strip()
             elif k == "@TK":
-                m.top.append(TopMatch(c[1].strip(), c[2].strip(), int(c[3]), int(c[4])))
+                m.top.append(TopMatch(c[1].strip(), title_case(c[2]), int(c[3]), int(c[4])))
             elif k == "@MB":
-                m.bests.append(TopMatch(c[1].strip(), c[2].strip(), int(c[3]), int(c[4])))
+                m.bests.append(TopMatch(c[1].strip(), title_case(c[2]), int(c[3]), int(c[4])))
             elif k == "@BU":
                 old = None if c[4].strip() == "-" else Stored(int(c[4]), int(c[5]), c[6].strip())
-                m.changes.append(Change(int(c[1]), c[2].strip(), c[3].strip(), old))
+                target = c[3].strip()
+                m.changes.append(Change(int(c[1]), c[2].strip(), target if target == ACC_TAG else title_case(target), old))
             elif k == "@BAD":
                 m.damaged.append(line.split("|", 1)[1].strip())
             elif k.startswith(FOOTER_MARK):

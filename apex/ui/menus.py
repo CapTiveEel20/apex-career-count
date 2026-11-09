@@ -82,6 +82,7 @@ def help_text():
             left = tag + " " * (11 - visible_len(tag)) if i == 0 else " " * 11
             out.append(f" {left} {cell}{' ' * (HELP_CMD_W - visible_len(cell))} {gray(what)}")
     out += ["-" * 79,
+            " " + gray("A level can be 700, 200 2 or 200 tier 2 (Level 200 Tier 2); max 2,000."),
             " " + gray("Lowering an account, base or level value asks y/n first."),
             " " + gray("Legend names can be shortened (wra = Wraith); a new name asks y/n first.")]
     return "\n".join(out) + "\n"

@@ -2,9 +2,9 @@
 commands built on them (save_match, save_quick) and the LIFO undo."""
 from typing import NamedTuple, Optional
 
-from apex.config import ABORTED, LEG_W, NO_LEGEND, SRC_LEVEL, SRC_MATCH
+from apex.config import ABORTED, LEG_W, MAX_LEVEL, NO_LEGEND, SRC_LEVEL, SRC_MATCH
 from apex.core.aggregates import legend_totals
-from apex.core.levels import check_later, last_level
+from apex.core.levels import check_later, last_level, level_name
 from apex.core.parsing import clean, resolve_legend
 from apex.core.records import Entry, MatchTotals, Stored, Tally
 from apex.display.messages import fmt_undo, logs_word
@@ -107,6 +107,8 @@ def _raised_level(ledger, n):
     last = last_level(ledger.stamp, m.logs, m.lv)
     if not last:
         raise ValueError("Error: no level recorded yet; set it first with accountl <n> (e.g. accountl 700).")
+    if last + n > MAX_LEVEL:
+        raise ValueError(f"Error: {n:,} more levels would be above the maximum ({level_name(MAX_LEVEL)}).")
     return last + n
 
 

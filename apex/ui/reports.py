@@ -5,7 +5,7 @@ from operator import attrgetter
 
 from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_GAMES, TOP_MONTH_BESTS
 from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, monthly_bests, top_matches
-from apex.core.levels import first_level
+from apex.core.levels import first_level, level_name, level_short
 from apex.core.records import LevelDay
 from apex.display.colors import green, orange, paint, red
 from apex.display.messages import account_line
@@ -123,8 +123,7 @@ def levels_gained(logs, lv, first):
     current = points[-1].level if points else 0
     head = f"{'PERIOD':<{REF_W}} | {'FROM':<10} | "
     width = len(head) + 7
-    cur_txt = f"{current:,}" if current else "-"
-    out = [f"# LEVELS GAINED  (today: {end}, " + orange(f"current level: {cur_txt}") + ")",
+    out = [f"# LEVELS GAINED  (today: {end}, " + orange(f"current: {level_name(current)}") + ")",
            head + " " + orange("GAINED"), "-" * width]
     for label, days in WINDOWS:
         s = _from_day(today, days)
@@ -230,7 +229,7 @@ def level_log(logs, lv):
     rows, prev = [], None
     for when, n in list(lv) + [(e.date, e.level) for e in logs if e.level]:
         change = f"{n - prev:+,}" if prev is not None else "-"
-        rows.append(f"{when[:10]:<10} | " + orange(num(n, 6)) + " | " + orange(f"{change:>6}"))
+        rows.append(f"{when[:10]:<10} | " + orange(f"{level_short(n):>6}") + " | " + orange(f"{change:>6}"))
         prev = n
     dash = "-" * len(LLOG_HEAD)
     return ([f"# LEVELS  (last {LOG_RECENT})", LLOG_HEAD, dash] + (rows[-LOG_RECENT:] or ["(no level recorded yet)"]) +

@@ -1,7 +1,7 @@
 """'account' command: show, first-time save, or log the gain (new - saved) as a match; 'accountl': set the level."""
 from apex.config import ABORTED, SRC_ACCOUNT
 from apex.core.levels import last_level
-from apex.core.parsing import NUM_RE, InputError, to_int
+from apex.core.parsing import NUM_RE, InputError, parse_level, to_int
 from apex.core.records import Tally
 from apex.core.totals import FIRST, LOWERED, UNCHANGED, decide_totals
 from apex.display.colors import green, paint, red
@@ -11,10 +11,9 @@ from apex.storage.ledger import Ledger
 
 
 def accountl_cmd(d, args, when, confirm):
-    """'accountl <n>': set the absolute account level; a level lower than the current one needs confirm()."""
-    if len(args) != 1 or not NUM_RE.match(args[0]):
-        raise InputError()
-    level = _level_arg(args[0])
+    """'accountl <n>', 'accountl <level> <tier>' or 'accountl <level> tier <tier>': set the account level;
+    a level lower than the current one needs confirm()."""
+    level = parse_level(args)
     with Ledger(d, when) as ledger:
         m = ledger.open_month()
         if level < last_level(ledger.stamp, m.logs, m.lv) and not confirm():
@@ -22,15 +21,8 @@ def accountl_cmd(d, args, when, confirm):
         return fmt_saved(record_level(ledger, level)) + "\n"
 
 
-def _level_arg(token):
-    n = to_int(token)
-    if n < 1:
-        raise ValueError("Error: the level must be 1 or higher.")
-    return n
-
-
 def account_cmd(d, args, when, confirm):
-    """'account' shows the totals. 'account <kills> <wins> [level]':
+    """'account' shows the totals. 'account <kills> <wins> [level]' (level as in parse_level):
     - level given: recorded first (an equal level logs nothing); confirm() is asked once for the
       whole command if the level or the totals would go down, so nothing is half applied;
     - first time (no totals yet): saves the totals, nothing is logged;
@@ -42,12 +34,12 @@ def account_cmd(d, args, when, confirm):
     if not args:
         with Ledger(d) as ledger:
             return account_line(ledger.account, level=ledger.level())
-    if len(args) not in (2, 3) or not all(NUM_RE.match(a) for a in args):
+    if len(args) < 2 or not all(NUM_RE.match(a) for a in args[:2]):
         raise InputError()
     kills, wins = to_int(args[0]), to_int(args[1])
     if kills < 0 or wins < 0:
         raise ValueError("Error: account kills and wins cannot be negative.")
-    new_level = _level_arg(args[2]) if len(args) == 3 else 0
+    new_level = parse_level(args[2:]) if len(args) > 2 else 0
     with Ledger(d, when) as ledger:
         last = 0
         if new_level:

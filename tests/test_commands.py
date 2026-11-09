@@ -312,6 +312,77 @@ class DateTests(SessionCase):
         self.assertEqual(self.do("date soon"), quick_guide())
 
 
+class TierLevelTests(DatedCase):
+    def level(self):
+        return self.logs()[-1].level
+
+    def test_every_input_form_stores_the_absolute_level(self):
+        for line in ("accountl 700", "accountl 200 tier 2", "accountl 200 TIER 2", "accountl 200 2",
+                     "account 1000 100 700", "account 1000 100 200 tier 2", "account 1000 100 200 2"):
+            with self.subTest(line=line):
+                self.setUp()
+                self.do(line)
+                self.assertEqual(self.level(), 700)
+
+    def test_the_data_file_keeps_plain_absolute_digits(self):
+        self.do("accountl 200 tier 2")
+        self.assertRegex(self.month_text(JAN), r"\|\s+700 \|")
+
+    def test_output_shows_level_and_tier(self):
+        self.assertIn("Level 200 Tier 2", self.do("account 1000 100", "accountl 700"))
+        self.assertIn("Level 200 Tier 2", self.do("account"))
+        self.assertIn("Level 200 Tier 2", self.do("5 1 wraith"))
+        self.assertIn("Level 200 Tier 2", self.do("undo").split("PREVIOUS LOG:")[1])
+
+    def test_the_log_table_uses_the_short_form(self):
+        self.do("accountl 700")
+        self.assertIn("200 T2", self.do("log"))
+
+    def test_out_of_range_values_are_errors_and_save_nothing(self):
+        for line in ("accountl 2001", "accountl 0", "accountl 501 2", "accountl 0 1", "accountl 200 5",
+                     "accountl 200 tier 0", "account 1000 100 200 5"):
+            with self.subTest(line=line):
+                self.assertTrue(self.do(line).startswith("Error:"), line)
+                self.assertFalse(self.has_month(JAN))
+
+    def test_malformed_level_input_shows_the_menu(self):
+        for line in ("accountl 200 foo 2", "accountl 200 tier", "accountl 200 2 3", "account 1000 100 200 tier"):
+            with self.subTest(line=line):
+                self.assertEqual(self.do(line), quick_guide())
+
+    def test_relative_levels_stop_at_the_maximum(self):
+        self.do("accountl 1999", "1l")
+        self.assertEqual(self.level(), 2000)
+        self.assertIn("above the maximum", self.do("1l"))
+        self.assertIn("above the maximum", self.do("5k 1l wraith"))
+        self.assertEqual(len(self.logs()), 2)
+
+
+class LegendNameTests(DatedCase):
+    def test_every_word_is_capitalized(self):
+        self.do("7 1 mad maggie", "3 0 MAD MAGGIE", "1w mad maggie")
+        self.assertEqual({e.legend for e in self.logs()}, {"Mad Maggie"})
+
+    def test_base_and_pin_use_title_case(self):
+        self.assertIn("Mad Maggie is locked", self.do("base mad maggie 5 5", "p mad maggie"))
+        self.assertEqual(list(self.bases()), ["Mad Maggie"])
+
+    def test_names_saved_by_older_versions_stay_the_same_legend(self):
+        self.do("base mad maggie 5 5", "7 1 mad maggie")
+        self.write_account_text(self.account_text().replace("Mad Maggie", "Mad maggie"))
+        self.write_month_text(JAN, self.month_text(JAN).replace("Mad Maggie", "Mad maggie"))
+        self.assertIn("Mad Maggie is locked", self.do("p mad maggie"))
+        self.do("3 0")
+        self.assertEqual({e.legend for e in self.logs()}, {"Mad Maggie"})
+        self.assertEqual(list(self.bases()), ["Mad Maggie"])
+        self.assertNotIn("Mad maggie", self.month_text(JAN))
+        self.assertEqual(self.new_legends, [])
+
+    def test_undo_of_an_account_change_still_works_after_a_read(self):
+        self.do("account 100 10", "undo")
+        self.assertIsNone(self.account())
+
+
 class CombinedQuickTests(DatedCase):
     def last(self):
         e = self.logs()[-1]
@@ -362,7 +433,7 @@ class CombinedQuickTests(DatedCase):
         self.assertEqual(len(self.logs()), 1)
 
     def test_the_saved_line_shows_the_new_level(self):
-        self.assertIn("KILLS 5  WINS 1  LEVEL 702", self.do("accountl 700", "5k 1w 2l wraith"))
+        self.assertIn("KILLS 5  WINS 1  Level 202 Tier 2", self.do("accountl 700", "5k 1w 2l wraith"))
 
     def test_the_next_level_counts_from_it(self):
         self.do("accountl 700", "5k 2l wraith", "3l")
@@ -375,18 +446,18 @@ class CombinedQuickTests(DatedCase):
     def test_one_undo_reverts_the_whole_line(self):
         self.do("account 100 10 700", "5k 1w 2l wraith", "undo")
         self.assertEqual((self.account().kills, self.account().wins), (100, 10))
-        self.assertEqual(self.do("3l").count("LEVEL 703"), 1)
+        self.assertEqual(self.do("3l").count("Level 203 Tier 2"), 1)
 
     def test_previous_log_shows_its_level(self):
         out = self.do("accountl 700", "5k 2l wraith", "1k wraith", "undo")
         self.assertIn("[MATCH]", out)
-        self.assertIn("LEVEL 702", out.split("PREVIOUS LOG:")[1])
+        self.assertIn("Level 202 Tier 2", out.split("PREVIOUS LOG:")[1])
 
     def test_it_shows_in_both_log_tables(self):
         self.do("accountl 700", "5k 2l wraith")
         out = self.do("log")
         self.assertIn("Wraith", out)
-        self.assertIn("702", out)
+        self.assertIn("202 T2", out)
 
     def test_a_lone_level_still_takes_no_legend(self):
         self.assertIn("takes no legend", self.do("accountl 700", "3l wraith"))

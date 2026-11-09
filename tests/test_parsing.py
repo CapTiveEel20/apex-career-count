@@ -1,6 +1,7 @@
 import unittest
 
-from apex.core.parsing import InputError, clean, parse_match, parse_quick, resolve_legend, to_int
+from apex.core.levels import level_name, level_short
+from apex.core.parsing import InputError, clean, parse_level, parse_match, parse_quick, resolve_legend, to_int
 from apex.core.records import Quick
 
 
@@ -73,7 +74,31 @@ class ParseQuickTests(unittest.TestCase):
         self.assertIsNone(parse_quick(["7"]))
 
 
+class LevelTests(unittest.TestCase):
+    def test_the_three_input_forms(self):
+        self.assertEqual(parse_level(["700"]), 700)
+        self.assertEqual(parse_level(["200", "2"]), 700)
+        self.assertEqual(parse_level(["200", "tier", "2"]), 700)
+        self.assertEqual(parse_level(["500", "tier", "4"]), 2000)
+
+    def test_level_names_at_the_tier_edges(self):
+        for level, name, short in ((1, "Level 1 Tier 1", "1 T1"), (500, "Level 500 Tier 1", "500 T1"),
+                                   (501, "Level 1 Tier 2", "1 T2"), (700, "Level 200 Tier 2", "200 T2"),
+                                   (2000, "Level 500 Tier 4", "500 T4")):
+            with self.subTest(level=level):
+                self.assertEqual(level_name(level), name)
+                self.assertEqual(level_short(level), short)
+
+    def test_no_level_recorded(self):
+        self.assertEqual(level_name(0), "Level -")
+        self.assertEqual(level_short(0), "-")
+
+
 class CleanTests(unittest.TestCase):
+    def test_capitalizes_every_word(self):
+        self.assertEqual(clean("mad maggie", 12), "Mad Maggie")
+        self.assertEqual(clean("MAD mAGGIE", 12), "Mad Maggie")
+
     def test_capitalizes_and_cuts_to_width(self):
         self.assertEqual(clean("wRAITH", 12), "Wraith")
         self.assertEqual(clean("abcdefghijklmnop", 12), "Abcdefghijkl")
