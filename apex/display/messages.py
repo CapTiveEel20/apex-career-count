@@ -1,5 +1,5 @@
 """Short terminal messages: the account-totals line, the SAVED confirmation and the undo report."""
-from apex.config import SRC_ACCOUNT, SRC_BASE
+from apex.config import SRC_ACCOUNT, SRC_BASE, SRC_CLAIM
 from apex.core.levels import level_name
 from apex.display.colors import blue, cyan, green, orange, paint, purple, red
 
@@ -62,7 +62,7 @@ def fmt_previous(entry, change):
         return "none (nothing left to undo in this file)"
     if entry and entry.src == SRC_ACCOUNT:  # account gain (its snapshot shares the ID)
         return purple("[ACCOUNT UPDATE]") + f" {entry.date} | " + kw_values(entry.kills, entry.wins, "+")
-    if entry and entry.src == SRC_BASE:  # base gain, logged for its legend
+    if entry and entry.src in (SRC_BASE, SRC_CLAIM):  # base gain, logged for its legend
         return blue("[BASE UPDATE]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins, "+")
     if entry and entry.level_only:
         return orange("[LEVEL UPDATE]") + f" {entry.date} | " + level_txt(entry.level)

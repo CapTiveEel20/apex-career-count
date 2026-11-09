@@ -1,5 +1,6 @@
 """Pure aggregation over log entries (records.Entry): totals, per-legend totals, months and periods (no I/O)."""
-from apex.config import NA, NO_LEGEND, SEMI_MONTHS, SRC_MATCH, TOP_MATCHES, TOP_MONTH_BESTS, YEAR_MONTHS
+from apex.config import (NA, NO_LEGEND, SEMI_MONTHS, SRC_ACCOUNT, SRC_CLAIM, SRC_MATCH, TOP_MATCHES, TOP_MONTH_BESTS,
+                         YEAR_MONTHS)
 from apex.core.records import LegendRow, Periods, Tally, TopMatch
 
 
@@ -15,6 +16,9 @@ def midx(month):
 
 
 def log_agg(logs):
+    """Tally (entries, kills, wins) of what the entries add to the account and to 'report': all but the
+    claimed parts of base gains (SRC_CLAIM), which an account gain already counted."""
+    logs = [e for e in logs if e.src != SRC_CLAIM]
     return Tally(len(logs), sum(e.kills for e in logs), sum(e.wins for e in logs))
 
 
@@ -31,6 +35,22 @@ def legend_totals(hl, logs):
     for leg, t in legend_agg(logs).items():
         out[leg] = out.get(leg, Tally()) + t
     return out
+
+
+def unclaimed(logs, changes):
+    """Tally(0, kills, wins) that the month's account gains (SRC_ACCOUNT entries) added and that no
+    legend's base gain has claimed yet (SRC_CLAIM entries); kills and wins apart, each never below 0.
+    Only records after the month's last account change that is not a gain count: a first save or a
+    confirmed lowering sets the account totals anew. Worked out from the records each time, never
+    stored: undo takes the newest record out first, so it stays exact."""
+    shared = {e.id for e in logs}  # a gain's snapshot shares its entry's ID
+    reset = max((c.id for c in changes if c.is_account and c.id not in shared), default=0)
+    after = [e for e in logs if e.id > reset]
+    added = [e for e in after if e.src == SRC_ACCOUNT]
+    claimed = [e for e in after if e.src == SRC_CLAIM]
+    kills = sum(e.kills for e in added) - sum(e.kills for e in claimed)
+    wins = sum(e.wins for e in added) - sum(e.wins for e in claimed)
+    return Tally(0, max(0, kills), max(0, wins))
 
 
 def last_logged(ll, logs):

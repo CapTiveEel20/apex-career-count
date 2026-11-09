@@ -1,7 +1,7 @@
 """Record types of the data files (no I/O): tallies and saved totals, log entries, undo records and a whole month."""
 from typing import NamedTuple, Optional
 
-from apex.config import ACC_TAG, SRC_LEVEL
+from apex.config import ACC_TAG, SRC_BASE, SRC_LEVEL
 
 
 class Tally(NamedTuple):
@@ -71,7 +71,7 @@ class Quick(NamedTuple):
 
 class Entry(NamedTuple):
     """One log entry (an L line). acc = 1 if its kills/wins were added to the account totals;
-    src = where it came from: SRC_MATCH, SRC_ACCOUNT, SRC_BASE or SRC_LEVEL."""
+    src = where it came from: SRC_MATCH, SRC_ACCOUNT, SRC_BASE, SRC_CLAIM or SRC_LEVEL."""
     date: str
     legend: str
     kills: int
@@ -134,7 +134,13 @@ class Month(NamedTuple):
 
     def last_action(self):
         """(Entry, Change) of the most recent action, the records with the highest ID (what undo
-        reverts next): one of them, both (an account gain and its snapshot), or (None, None)."""
+        reverts next): one of them, both (an account gain and its snapshot), or (None, None). A base
+        gain split into a claimed and an unclaimed part (two entries, one ID) comes back as one
+        SRC_BASE entry holding the whole gain."""
         top = max([e.id for e in self.logs] + [c.id for c in self.changes], default=None)
-        return (next((e for e in self.logs if e.id == top), None),
-                next((c for c in self.changes if c.id == top), None))
+        entries = [e for e in self.logs if e.id == top]
+        entry = entries[0] if entries else None
+        if len(entries) > 1:
+            entry = entry._replace(kills=sum(e.kills for e in entries), wins=sum(e.wins for e in entries),
+                                   acc=max(e.acc for e in entries), src=SRC_BASE)
+        return entry, next((c for c in self.changes if c.id == top), None)

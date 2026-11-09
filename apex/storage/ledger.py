@@ -6,7 +6,7 @@ together (nothing is written if the block raises). Commands never touch the file
 import os
 from datetime import datetime
 
-from apex.config import ACC_TAG, ACCOUNT_FILE, DFMT, SRC_ACCOUNT
+from apex.config import ACC_TAG, ACCOUNT_FILE, DFMT, SRC_ACCOUNT, SRC_CLAIM
 from apex.core.levels import latest_level
 from apex.core.parsing import parse_when
 from apex.core.records import Change, Month, Stored
@@ -128,15 +128,16 @@ class Ledger:
 
     def add(self, entry):
         """Log an Entry of the month opened with open_month. If it counts for the account (acc = 1)
-        the totals move with it; an account gain also keeps the totals before it, under the same ID."""
+        the totals move with it. An account gain, or the claimed part of a base gain (added before the
+        rest of that gain), also keeps the totals before it under the same ID: undo puts them back exactly."""
         m = self.current
         m.logs.append(entry)
         m.logs.sort(key=lambda e: (e.date, e.id))
         self._month_dirty = True
+        if entry.src == SRC_CLAIM or (entry.acc and entry.src == SRC_ACCOUNT):
+            m.changes.append(Change(entry.id, entry.date, ACC_TAG, self.account))
         if entry.acc:
             acc = self.account
-            if entry.src == SRC_ACCOUNT:
-                m.changes.append(Change(entry.id, entry.date, ACC_TAG, acc))
             self._set_account(Stored(acc.kills + entry.kills, acc.wins + entry.wins, _now()))
 
     def _add_change(self, target, old):
@@ -171,8 +172,8 @@ class Ledger:
         entry, change = m.last_action()
         if not (entry or change):
             raise ValueError("Nothing to undo.")
-        if entry:
-            m.logs.remove(entry)
+        if entry:  # every entry of the action: a split base gain has two
+            m.logs[:] = [e for e in m.logs if e.id != entry.id]
         if change:
             m.changes.remove(change)
         self._month_dirty = True

@@ -32,6 +32,9 @@ TAG_W, REF_W, LEG_W = 7, 13, 12
 # Log record: (date, legend, kills, wins, level, id, acc, src)  acc = 1 if added to the account totals
 # src = where the entry came from (SRC column): a match, an account update, a base update or a level update
 SRC_MATCH, SRC_ACCOUNT, SRC_BASE, SRC_LEVEL = "M", "A", "B", "L"
+# The part of a base gain that an account gain of the same month already added: it counts for its legend
+# only, never again for the account totals or 'report' (see aggregates.unclaimed)
+SRC_CLAIM = "C"
 # Hidden command aliases (alias -> command), accepted by the REPL but never shown in any help, menu
 # or document
 ALIASES = {"duno": "undo"}

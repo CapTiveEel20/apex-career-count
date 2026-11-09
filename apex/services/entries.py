@@ -2,8 +2,8 @@
 commands built on them (save_match, save_quick) and the LIFO undo."""
 from typing import NamedTuple, Optional
 
-from apex.config import ABORTED, LEG_W, MAX_LEVEL, NO_LEGEND, SRC_LEVEL, SRC_MATCH
-from apex.core.aggregates import legend_totals
+from apex.config import ABORTED, LEG_W, MAX_LEVEL, NO_LEGEND, SRC_BASE, SRC_CLAIM, SRC_LEVEL, SRC_MATCH
+from apex.core.aggregates import legend_totals, unclaimed
 from apex.core.levels import check_later, last_level, level_name
 from apex.core.parsing import clean, resolve_legend
 from apex.core.records import Entry, MatchTotals, Stored, Tally
@@ -47,6 +47,25 @@ def record_gain(ledger, kills, wins, legend=None, source=SRC_MATCH, level=0):
     rec = Entry(stamp, clean(legend, LEG_W), kills, wins, level, m.next_id(), acc, source)
     ledger.add(rec)
     return rec
+
+
+def record_base_gain(ledger, kills, wins, legend):
+    """Log a legend's base gain. The part that this month's account gains already added and no base gain
+    has claimed yet (aggregates.unclaimed) is claimed: an SRC_CLAIM entry, which leaves the account totals
+    alone. The rest is an SRC_BASE entry, which moves them as before. Both parts share one ID and the
+    snapshot of the account totals before them, so one undo reverts the whole gain exactly.
+    Returns (the whole gain as one SRC_BASE Entry, Tally(0, kills, wins) claimed)."""
+    m = ledger.open_month()  # a new month starts with nothing to claim
+    pool = unclaimed(m.logs, m.changes) if ledger.account else Tally()
+    claimed = Tally(0, min(kills, pool.kills), min(wins, pool.wins))
+    if not (claimed.kills or claimed.wins):
+        return record_gain(ledger, kills, wins, legend, source=SRC_BASE), claimed
+    stamp, rid, name = ledger.stamp, m.next_id(), clean(legend, LEG_W)
+    ledger.add(Entry(stamp, name, claimed.kills, claimed.wins, 0, rid, 0, SRC_CLAIM))
+    rest_k, rest_w = kills - claimed.kills, wins - claimed.wins
+    if rest_k or rest_w:
+        ledger.add(Entry(stamp, name, rest_k, rest_w, 0, rid, 1, SRC_BASE))
+    return Entry(stamp, name, kills, wins, 0, rid, 1 if rest_k or rest_w else 0, SRC_BASE), claimed
 
 
 def record_level(ledger, level):

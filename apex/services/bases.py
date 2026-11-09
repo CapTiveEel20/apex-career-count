@@ -1,5 +1,5 @@
 """'base' command: list, set or correct a legend's all-time totals, or log the gain."""
-from apex.config import LEG_W, NO_LEGEND, REP, SRC_BASE
+from apex.config import LEG_W, NO_LEGEND, REP
 from apex.core.aggregates import legend_totals
 from apex.core.parsing import LVL_TOKEN_RE, NUM_RE, InputError, clean, to_int
 from apex.core.records import Tally
@@ -7,7 +7,7 @@ from apex.core.totals import FIRST, LOWERED, UNCHANGED, decide_totals
 from apex.display.colors import green, paint, red
 from apex.display.messages import fmt_saved
 from apex.display.tables import REP_NAMES, rep_cells, vals_cells
-from apex.services.entries import record_gain
+from apex.services.entries import record_base_gain
 from apex.storage.ledger import Ledger
 
 
@@ -74,7 +74,10 @@ def base_cmd(d, args, when, confirm):
             return (f"BASE  {legend}  already up to date: " + paint(f"KILLS {tk:,}  |  WINS {tw:,}") +
                     ", nothing logged.\n")
         dk, dw = decision.kills, decision.wins
-        rec = record_gain(ledger, dk, dw, legend, source=SRC_BASE)
+        rec, claimed = record_base_gain(ledger, dk, dw, legend)
         line = (f"BASE  {legend}  " + red(f"KILLS {tk:,} -> {kills:,} (+{dk:,})") + "  |  " +
                 green(f"WINS {tw:,} -> {wins:,} (+{dw:,})") + "\n")
+        if claimed.kills or claimed.wins:
+            line += ("  (" + paint(f"KILLS {claimed.kills:,} | WINS {claimed.wins:,}") +
+                     " of it already counted by an account update: not added to the account again)\n")
         return line + fmt_saved(rec, ledger.level()) + "\n"

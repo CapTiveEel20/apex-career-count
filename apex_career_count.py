@@ -39,7 +39,7 @@ File format (O(1) parsing per line via a constant prefix in the first column):
   @PL    per-month, per-legend totals (last 11 months)
   @LV    last level recorded per day (previous months, last year + 1 baseline)
   @BU    base and @ACCOUNT changes of this month (id, date, target, old value), so undo reverts them
-  L      one log entry (date, legend, kills, wins, level, id, acc, src = M/A/B/L origin)
+  L      one log entry (date, legend, kills, wins, level, id, acc, src = M/A/B/C/L origin)
   #      headers/comments (ignored by the parser)
   Summaries after "# SUMMARY" are recomputed on every write and never parsed.
 """
