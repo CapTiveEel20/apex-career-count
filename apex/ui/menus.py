@@ -18,7 +18,7 @@ def quick_guide():
         f" {purple('[ ACCOUNT ]')} {cmd('account')} {k} {w} {orange('[lvl]')} {note('(Sets/Syncs totals)')}"
         f" | {cmd('accountl')} {lvl} {note('(Level)')}\n"
         f" {blue('[ BASE ]')}    {cmd('base')} <name> {k} {w} {note('(Sets/Syncs legend totals)')}\n"
-        f" {cyan('[ MATCH ]')}   {k} {w} <legend>"
+        f" {cyan('[ MATCH ]')}   {k} {w} [legend]"
         f" | {red('<n>k')} {green('<n>w')} {orange('<n>l')} [legend]"
         f" {note('(e.g. ')}{red('5k')} {orange('2l')}{note(' wraith)')}\n"
         f" {note('[ STICKY ]')}  {cmd('p')} <name> {note('(Lock)')}"
