@@ -334,6 +334,9 @@ class TierLevelTests(DatedCase):
         self.assertIn("Level 200 Tier 2", self.do("5 1 wraith"))
         self.assertIn("Level 200 Tier 2", self.do("undo").split("PREVIOUS LOG:")[1])
 
+    def test_the_main_menu_explains_the_level_inputs(self):
+        self.assertIn("Level: 700 | 200 2 | 200 tier 2 (Level 200 Tier 2)", quick_guide())
+
     def test_the_log_table_uses_the_short_form(self):
         self.do("accountl 700")
         self.assertIn("200 T2", self.do("log"))
