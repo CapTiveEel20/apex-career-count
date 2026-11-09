@@ -2,7 +2,7 @@
 
 A terminal tracker for your **Apex Legends** kills, wins and account level, by legend. Type a match in a few keystrokes and get all-time totals, per-period tables and your best games. Everything stays in plain `.txt` files on your own computer.
 
-- Log a match with as little as `7` or `7 1 wra`
+- Log a match with as little as `7` or `7 1 wraith`
 - Totals per legend and for the whole account, kept across months
 - Top games of the month and an all-time list of monthly bests
 - `undo` for every action, last in, first out
