@@ -1,4 +1,4 @@
-# Apex Career Count
+# Apex Career Diary
 
 A terminal counter for your **Apex Legends** kills, wins and account level over time, by legend. Type a match in a few keystrokes and get all-time totals, per-period tables and your best games. Everything stays in plain `.txt` files on your own computer.
 

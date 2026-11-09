@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apex Career Count: kills, wins and levels over time, in plain .txt files (standard library only).
+"""Apex Career Diary: kills, wins and levels over time, in plain .txt files (standard library only).
 
 Entry point only: the code lives in the `apex` package next to this file.
 
