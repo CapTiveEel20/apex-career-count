@@ -40,7 +40,7 @@ TOTALS -> [Wraith] K: 3,007 W: 151 | [ACCOUNT] K: 15,007 W: 901
 
 | Input | What it saves |
 |---|---|
-| `7` | 7 kills, 0 wins, no legend (or the sticky legend) |
+| `7` | 7 kills, 0 wins, no legend. With a sticky legend: 7 kills and 1 win for it, the same as `7 <legend>` |
 | `5 1` | 5 kills, 1 win, no legend (or the sticky legend) |
 | `5 1 wraith` | 5 kills, 1 win, Wraith |
 | `5 wraith` | 5 kills, **1 win (added automatically)**, Wraith |
@@ -75,7 +75,7 @@ Every match is added to the account totals and to its legend's totals automatica
 
 ### Sticky legend
 
-The sticky legend is **off** by default. `p <name>` locks a legend already set with `base`, and matches and `<n>k` / `<n>w` without a legend then use it. A legend typed in an entry is used for that entry only. A typed `-` unlocks it, and `-` on a line of its own saves nothing.
+The sticky legend is **off** by default. `p <name>` locks a legend already set with `base`, and matches and `<n>k` / `<n>w` without a legend then use it. While it is locked, a number alone counts as 1 win, exactly like typing the legend; use `7 0` to save a match with no win. A legend typed in an entry is used for that entry only. A typed `-` unlocks it, and `-` on a line of its own saves nothing.
 
 ```
 > p bangalore
