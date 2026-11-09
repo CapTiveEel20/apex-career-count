@@ -1,6 +1,6 @@
-# Apex Stats
+# Apex Career Count
 
-A terminal tracker for your **Apex Legends** kills, wins and account level, by legend. Type a match in a few keystrokes and get all-time totals, per-period tables and your best games. Everything stays in plain `.txt` files on your own computer.
+A terminal counter for your **Apex Legends** kills, wins and account level over time, by legend. Type a match in a few keystrokes and get all-time totals, per-period tables and your best games. Everything stays in plain `.txt` files on your own computer.
 
 - Log a match with as little as `7` or `7 1 wra`
 - Totals per legend and for the whole account, kept across months
@@ -13,7 +13,7 @@ A terminal tracker for your **Apex Legends** kills, wins and account level, by l
 You need Python 3.7 or newer.
 
 ```bash
-python apex_stats.py
+python apex_career_count.py
 ```
 
 This opens the interactive menu. Type `help` for what each command does, and press Enter on an empty line to quit. Your data is saved in `apex_data/` next to the script.
@@ -21,7 +21,7 @@ This opens the interactive menu. Type `help` for what each command does, and pre
 To build a standalone `.exe` that keeps its data next to it:
 
 ```bash
-pyinstaller --onefile --distpath . apex_stats.py
+pyinstaller --onefile --distpath . apex_career_count.py
 ```
 
 ### First session

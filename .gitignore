@@ -6,7 +6,7 @@ account_stats.txt
 
 # Compiled executables (PyInstaller)
 *.exe
-/apex_stats
+/apex_career_count
 build/
 dist/
 *.spec

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Apex Legends stats tracker on plain .txt files (standard library only).
+"""Apex Career Count: kills, wins and levels over time, in plain .txt files (standard library only).
 
 Entry point only: the code lives in the `apex` package next to this file.
 
-Usage: python apex_stats.py   (opens the interactive menu; 'help' lists every command, an empty line quits)
+Usage: python apex_career_count.py   (opens the interactive menu; 'help' lists every command, an empty line quits)
   Sticky legend: OFF by default; "p <name>" locks a legend set with base. It is
   reused by later matches and <n>k / <n>w that omit a legend; a legend typed in an entry is used
   once; "-" clears it and turns sticky OFF. account and level updates never use it.

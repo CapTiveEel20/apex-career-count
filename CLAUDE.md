@@ -3,14 +3,14 @@ This file holds strict constraints for AI agents. Do not read other workspace fi
 
 ## 0. STRICT CHAT & EFFICIENCY RULES (CRITICAL)
 1. **NO YAPPING:** When using file-writing tools, reply with EXACTLY the single word `DONE`. No summaries, no diffs, no step-by-step explanations, no apologies.
-2. **TARGETED EDITS ONLY:** NEVER rewrite or output the entire `apex_stats.py` file. Only output/edit the specific functions or lines that need changing.
+2. **TARGETED EDITS ONLY:** NEVER rewrite or output the entire `apex_career_count.py` file. Only output/edit the specific functions or lines that need changing.
 3. **ENGLISH ONLY:** All code, variables, comments, terminal output, and file data MUST be in English.
 
 ## 1. COMMANDS
 ```bash
-python apex_stats.py                                            # run (no command-line arguments)
-python -m unittest                                              # tests, from the repo root
-python -m PyInstaller --noconfirm --distpath . apex_stats.spec  # rebuild apex_stats.exe next to apex_data/
+python apex_career_count.py                                            # run (no command-line arguments)
+python -m unittest                                                     # tests, from the repo root
+python -m PyInstaller --noconfirm --distpath . apex_career_count.spec  # rebuild apex_career_count.exe next to apex_data/
 ```
 - **Tests:** standard library only, temporary folders, in `tests/`. Drive commands through `Session.handle` (`tests/helpers.py`: `SessionCase`). Use dates in the past: future days are refused.
 - **Rebuild the `.exe` after a data-format change:** an older build drops header rows it does not know when it saves.
