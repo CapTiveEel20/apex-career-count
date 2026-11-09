@@ -91,14 +91,19 @@ def undo(d):
     with Ledger(d) as ledger:
         entry, change = ledger.revert_last()
     cur, m = ledger.month, ledger.current
+    newest, previous = current_month(d), m.last_action()
     if m.has_records:
         note = f"{logs_word(len(m.logs))} left in {cur}"
+    elif newest == cur:
+        note = f"nothing left to undo in {cur}; file kept, it holds the totals of earlier months"
     else:
-        note = f"{cur} is now empty, file removed; current month: {current_month(d) or 'none'}"
+        note = f"{cur} is now empty, file removed; current month: {newest or 'none'}"
+        with Ledger(d) as older:  # the next undo goes back into the month before
+            previous = older.current.last_action()
     logged = None
     if change and not change.is_account:  # the legend's logged kills/wins, shown with its restored base
         logged = legend_totals(m.hl, m.logs).get(change.target, Tally())
-    return fmt_undo(note, m.last_action(), entry, change, logged)
+    return fmt_undo(note, previous, entry, change, logged)
 
 
 def _raised_level(ledger, n):

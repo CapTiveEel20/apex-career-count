@@ -9,8 +9,11 @@ import sys
 from typing import NamedTuple, Optional
 
 from apex.config import ACC_TAG, ACCOUNT_FILE, BASE_TAG, LEG_W
-from apex.core.parsing import title_case
+from apex.core.parsing import is_row, title_case
 from apex.core.records import Stored
+
+
+USAGE = "Set with:"  # the title line that has a | in it
 
 
 class AccountData(NamedTuple):
@@ -45,10 +48,14 @@ def load_acct(d):
                         bases[title_case(c[1])] = Stored(int(c[2]), int(c[3]), c[4].strip() if len(c) > 4 else "")
                     elif tag == "@BAD":
                         damaged.append(line.split("|", 1)[1].strip())
+                    elif is_row(line) and not line.strip().startswith(USAGE):  # an unknown tag: keep it
+                        damaged.append(line.strip())
                 except (ValueError, IndexError):
                     damaged.append(line.strip())  # skip it, keep the rest
     except FileNotFoundError:
         pass  # nothing saved yet; any other read error must not look like empty data
+    except UnicodeDecodeError:
+        raise ValueError(f"Error: {ACCOUNT_FILE} is not valid UTF-8; save it as UTF-8 in a text editor.") from None
     except OSError as e:
         raise ValueError(f"Error: could not read {ACCOUNT_FILE} ({e}).") from e
     for line in damaged:
@@ -67,7 +74,7 @@ def render_acct(acc, bases, damaged=()):
     bhead = f"{'# TAG':<9} | {'LEGEND':<{LEG_W}} | {'KILLS':>10} | {'WINS':>10} | UPDATED"
     eq = "=" * (len(bhead) + 12)
     out = [eq, "  APEX LEGENDS - ACCOUNT TOTALS (global, all-time) AND LEGEND BASES",
-           "  Set with: account <kills> <wins>   |   base <legend> <kills> <wins>", eq, head, "-" * len(eq)]
+           f"  {USAGE} account <kills> <wins>   |   base <legend> <kills> <wins>", eq, head, "-" * len(eq)]
     if acc:
         out.append(f"{ACC_TAG:<9} | {acc.kills:>10} | {acc.wins:>10} | {acc.updated}")
     out += ["", "# @BASE = per-legend all-time totals not covered by logged entries (set with base)", bhead, "-" * len(eq)]

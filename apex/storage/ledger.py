@@ -12,7 +12,7 @@ from apex.core.parsing import parse_when
 from apex.core.records import Change, Month, Stored
 from apex.storage.account_file import account_path, load_acct, render_acct
 from apex.storage.atomic import FileChange, commit_files
-from apex.storage.monthly_file import current_month, month_path, read_month, render, roll_over
+from apex.storage.monthly_file import carried_elsewhere, current_month, month_path, read_month, render, roll_over
 
 
 def _now():
@@ -183,11 +183,13 @@ class Ledger:
 
     def _commit(self):
         """Write what changed, the monthly file first, all or nothing. A month left with no records is
-        deleted, so the previous month (untouched at rollover) becomes current again."""
+        deleted, so the previous month (untouched at rollover) becomes current again; unless it holds
+        totals of earlier months that no other file has any more: it then stays, with no records."""
         changes = []
         if self._month_dirty:
             m = self._m
-            text = render(self._month, m) if m.has_records else None
+            keep = m.has_records or not carried_elsewhere(self.d, self._month, m)
+            text = render(self._month, m) if keep else None
             changes.append(FileChange(month_path(self.d, self._month), text, self._text))
         if self._acct_dirty:
             changes.append(FileChange(account_path(self.d), render_acct(self._account, self._bases, self._damaged), None))
