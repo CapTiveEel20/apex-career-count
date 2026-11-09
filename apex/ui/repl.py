@@ -14,7 +14,7 @@ from apex.services.bases import base_cmd
 from apex.services.entries import save_match, save_quick, undo
 from apex.storage.account_file import load_acct
 from apex.ui.menus import help_text, quick_guide
-from apex.ui.reports import VIEWS, legend_text
+from apex.ui.reports import VIEWS, account_summary, legend_text
 from apex.ui.screen import terminal_screen
 
 
@@ -82,7 +82,7 @@ class Session:
         try:
             return self._run(line.strip())
         except InputError:
-            return quick_guide()
+            return main_menu(self.d)
         except ValueError as e:
             return paint(str(e)) + "\n"
         except OSError as e:
@@ -148,10 +148,15 @@ class Session:
         return f"  Active date: {self.day or 'today (system)'}\n"
 
 
+def main_menu(d):
+    """The main menu with the account totals and level as they are now in folder d."""
+    return quick_guide(*account_summary(d))
+
+
 def interactive(d=DEFAULT_DIR):
     setup()
     screen = terminal_screen()
-    screen.show(quick_guide())
+    screen.show(main_menu(d))
     session = Session(d, confirm=lambda: confirm_lower(screen.read),
                       confirm_legend=lambda name: confirm_new_legend(name, screen.read))
     try:

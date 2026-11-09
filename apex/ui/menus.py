@@ -1,19 +1,33 @@
 """The main menu (quick_guide: when the REPL starts and on unrecognized input) and the 'help' screen."""
 from apex.config import UI_WIDTH
 from apex.display.colors import blue, cyan, gray, green, orange, purple, red, steel, visible_len, yellow
+from apex.display.messages import level_txt
 
 HELP_CMD_W = 23  # visible width of the command column of the help screen
 
 
+def _centered(text):
+    """text centered in the UI column (color codes do not count)."""
+    return " " * ((UI_WIDTH - visible_len(text)) // 2) + text
+
+
 def _title(text):
     """text in the title color, centered in the UI column."""
-    return " " * ((UI_WIDTH - len(text)) // 2) + yellow(text)
+    return _centered(yellow(text))
 
 
-def quick_guide():
+def account_summary_line(account=None, level=0):
+    """'KILLS <k>  |  WINS <w>  |  Level <n> Tier <t>' (kills red, wins green, level orange), centered;
+    '-' for totals never set and 'Level -' for no level recorded."""
+    k, w = (f"{account.kills:,}", f"{account.wins:,}") if account else ("-", "-")
+    return _centered(red(f"KILLS {k}") + "  |  " + green(f"WINS {w}") + "  |  " + level_txt(level))
+
+
+def quick_guide(account=None, level=0):
     """The main menu: kills red, wins green, levels orange, commands soft blue, title yellow,
     [ ACCOUNT ] purple, [ BASE ] blue, [ MATCH ] cyan, other tags and explanations gray;
-    borders and names in the default color. Plain text when colors are off."""
+    borders and names in the default color. Plain text when colors are off. Under the title, the
+    account totals (Stored or None) and the current level (0 = none), between two dividers."""
     k, w, lvl = red("<k>"), green("<w>"), orange("<lvl>")
     cmd, note = steel, gray
     equals, dashes = "=" * UI_WIDTH, "-" * UI_WIDTH
@@ -21,6 +35,8 @@ def quick_guide():
         f"\n{equals}\n"
         f"{_title('APEX CAREER DIARY')}\n"
         f"{equals}\n"
+        f"{account_summary_line(account, level)}\n"
+        f"{dashes}\n"
         f" {purple('[ ACCOUNT ]')} {cmd('account')} {k} {w} {orange('[lvl]')} {note('(Sets/Syncs totals)')}"
         f" | {cmd('accountl')} {lvl} {note('(Level)')}\n"
         f"             {note('Level:')} {orange('700')} | {orange('200 2')} | {orange('200 tier 2')}"

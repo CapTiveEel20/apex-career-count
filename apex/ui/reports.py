@@ -5,7 +5,7 @@ from operator import attrgetter
 
 from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_GAMES, TOP_MONTH_BESTS
 from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, top_matches
-from apex.core.levels import first_level, level_name, level_short
+from apex.core.levels import first_level, latest_level, level_name, level_short
 from apex.core.records import LevelDay
 from apex.display.colors import green, orange, paint, red
 from apex.display.messages import account_line
@@ -143,6 +143,21 @@ def report_text(d):
     left = period_summary(date.today(), logs, m.hist + log_agg(m.logs))
     tables = side_by_side(left, levels_gained(m.logs, m.lv, first_level(logs, m.lv)), gap=3)
     return f"File: {path}\n\n" + account_line(load_account(d)) + "\n" + "\n".join(tables) + "\n"
+
+
+def account_summary(d):
+    """(account totals or None, current level or 0) for the main menu, read fresh each time. A data
+    file that is missing or cannot be read leaves that part empty, so the menu always shows."""
+    try:
+        account = load_account(d)
+    except (ValueError, OSError):
+        account = None
+    try:
+        _, _, m = load_current(d)
+        level = latest_level(m.logs, m.lv)
+    except (ValueError, OSError):
+        level = 0
+    return account, level
 
 
 def load_this_month(d):

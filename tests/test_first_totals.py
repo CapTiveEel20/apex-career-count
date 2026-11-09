@@ -1,6 +1,7 @@
 """The first 'account' and the first 'base' of each legend are a starting point: only later gains count."""
 from datetime import date
 
+from apex.config import UI_WIDTH
 from apex.ui.menus import quick_guide
 from tests.helpers import SessionCase
 from tests.test_views import ALL, HALF, MONTH, QUARTER, WEEK, YEAR, report_row
@@ -65,3 +66,23 @@ class MenuTests(SessionCase):
         self.assertTrue(lines[i - 1].endswith("(By Period) |"))
         self.assertEqual(lines[i].strip(), "log (Games logged)")
         self.assertLessEqual(max(len(x) for x in lines), 79)
+
+    def summary(self):
+        """The account summary line of the menu shown for unrecognized input, and its neighbours."""
+        lines = self.do("banana").split("\n")
+        i = next(i for i, x in enumerate(lines) if x.strip().startswith("KILLS"))
+        return lines[i - 1], lines[i], lines[i + 1]
+
+    def test_the_account_summary_sits_centered_between_the_title_and_a_divider(self):
+        above, line, below = self.summary()
+        self.assertEqual((above, below), ("=" * UI_WIDTH, "-" * UI_WIDTH))
+        self.assertEqual(line.strip(), "KILLS -  |  WINS -  |  Level -")
+        self.assertIn(UI_WIDTH - len(line.strip()) - 2 * (len(line) - len(line.strip())), (0, 1))
+
+    def test_the_account_summary_follows_new_entries(self):
+        self.do("date 2025-01-10", "account 1000 100 700")
+        self.assertEqual(self.summary()[1].strip(), "KILLS 1,000  |  WINS 100  |  Level 200 Tier 2")
+        self.do("7 1 wraith", "2l")
+        self.assertEqual(self.summary()[1].strip(), "KILLS 1,007  |  WINS 101  |  Level 202 Tier 2")
+        self.do("undo", "undo")
+        self.assertEqual(self.summary()[1].strip(), "KILLS 1,000  |  WINS 100  |  Level 200 Tier 2")
