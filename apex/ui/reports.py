@@ -166,14 +166,18 @@ def wins_text(d):
     return account_line(data.account, "wins") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "wins", data.bases)
 
 
+def win_cell(r):
+    """WIN column of 'g' and 'log': W (green) if the match had a win, else L (red)."""
+    return green(f"{'W':<3}") if r.wins > 0 else red(f"{'L':<3}")
+
+
 def game_table(title, when_head, when_w, rows, when, empty):
     """One table of 'g' (lines): rank, kills, win (W = the match had a win, else L), legend, then
     when(row) in a column when_w wide."""
     head = f"{'#':<2} | {'KILLS':>6} | {'WIN':<3} | {'LEGEND':<{LEG_W}} | {when_head:<{when_w}}"
     out = [title, paint(head), "-" * len(head)]
     for i, r in enumerate(rows, 1):
-        win = green(f"{'W':<3}") if r.wins > 0 else red(f"{'L':<3}")
-        out.append(f"{i:<2} | " + red(num(r.kills, 6)) + f" | {win} | {r.legend:<{LEG_W}} | {when(r):<{when_w}}")
+        out.append(f"{i:<2} | " + red(num(r.kills, 6)) + f" | {win_cell(r)} | {r.legend:<{LEG_W}} | {when(r):<{when_w}}")
     return out + ([] if rows else [empty]) + ["=" * len(head)]
 
 
@@ -200,7 +204,7 @@ def games_text(d):
 
 LOG_RECENT = 20  # rows of each 'log' table
 # 'log' column widths: the two tables and their gap fit in 79 columns
-MLOG_HEAD = f"{'DATE':<16} | {'LEGEND':<{LEG_W}} | {'KILLS':>6} | {'WINS':>5}"
+MLOG_HEAD = f"{'DATE':<16} | {'LEGEND':<{LEG_W}} | {'KILLS':>6} | {'WIN':<3}"
 LLOG_HEAD = f"{'DATE':<10} | {'LEVEL':>6} | {'CHANGE':>6}"
 
 
@@ -212,7 +216,7 @@ def match_log(month, logs):
     out = [f"# MATCHES  ({month}, last {LOG_RECENT})", paint(MLOG_HEAD), dash]
     rows = [e for e in logs if e.src == SRC_MATCH][-LOG_RECENT:]
     for e in rows:
-        out.append(f"{e.date:<16} | {e.legend:<{LEG_W}} | " + red(num(e.kills, 6)) + " | " + green(num(e.wins, 5)))
+        out.append(f"{e.date:<16} | {e.legend:<{LEG_W}} | " + red(num(e.kills, 6)) + " | " + win_cell(e))
     if not rows:
         out.append("(no matches logged this month)")
     out.append("=" * len(MLOG_HEAD))

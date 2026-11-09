@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from unittest.mock import patch
 
 from apex.config import ABORTED, SRC_ACCOUNT, SRC_BASE, SRC_MATCH
+from apex.display.colors import green, red
 from apex.ui.menus import help_text, quick_guide
 from apex.ui.repl import confirm_new_legend
 from tests.helpers import SessionCase
@@ -309,6 +310,26 @@ class DateTests(SessionCase):
 
     def test_a_malformed_date_shows_the_menu(self):
         self.assertEqual(self.do("date soon"), quick_guide())
+
+
+class LogTests(DatedCase):
+    def rows(self):
+        with patch("apex.display.colors.COLOR", True):
+            return self.do("log").splitlines()
+
+    def row(self, lines, legend):
+        return next(line for line in lines if legend in line)
+
+    def test_matches_show_win_as_w_green_and_loss_as_l_red(self):
+        self.do("7 1 wraith", "3 0 octane", "4 2 bangalore")
+        lines = self.rows()
+        self.assertIn(green(f"{'W':<3}", True), self.row(lines, "Wraith"))
+        self.assertIn(red(f"{'L':<3}", True), self.row(lines, "Octane"))
+        self.assertIn(green(f"{'W':<3}", True), self.row(lines, "Bangalore"))
+
+    def test_the_matches_table_header_is_win_like_g(self):
+        self.do("7 1 wraith")
+        self.assertRegex(self.do("log"), r"KILLS \| WIN\b")
 
 
 class UnreadableFileTests(DatedCase):
