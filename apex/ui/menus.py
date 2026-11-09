@@ -36,7 +36,7 @@ def quick_guide():
         f" {note('[ TABLES ]')}  {cmd('l')} {note('(Kills)')} | {cmd('lw')} {note('(Wins)')}"
         f" | {cmd('la')} {note('(A-Z)')} | {cmd('lm')} {note('(Recent)')} |\n"
         f"             {cmd('ls')} <name> {note('(Search)')} | {cmd('g')} {note('(Top Games)')}"
-        f" | {cmd('k')} | {cmd('w')} {note('(By Period)')}\n"
+        f" | {cmd('k')} | {cmd('w')} {note('(By Period)')} | {cmd('log')}\n"
         f" {note('[ SYSTEM ]')}  {cmd('report')} | {cmd('undo')} | {cmd('date')} YYYY-MM-DD | {cmd('date today')}"
         f" | {cmd('help')}\n"
         f"{dashes}\n"
