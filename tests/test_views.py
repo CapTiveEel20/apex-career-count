@@ -91,7 +91,7 @@ class LegendViewTests(SessionCase):
         self.assertIn("(no base legend matches 'zzz')", self.do("ls zzz"))
 
     def test_ls_needs_a_name(self):
-        self.assertIn("APEX CAREER COUNT", self.do("ls"))
+        self.assertIn("APEX CAREER DIARY", self.do("ls"))
 
     def test_only_base_legends_are_on_the_left(self):
         self.assertNotIn("Newcomer", self.left("l"))

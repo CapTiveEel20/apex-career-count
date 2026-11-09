@@ -3,7 +3,7 @@ import os
 import re
 import sys
 
-# Next to apex_career_count.py (the parent of this package), or next to the executable when frozen
+# Next to apex_career_diary.py (the parent of this package), or next to the executable when frozen
 # (PyInstaller unpacks the package into a temp dir)
 if getattr(sys, "frozen", False):
     _ROOT = os.path.dirname(os.path.abspath(sys.executable))

@@ -13,7 +13,7 @@ A terminal counter for your **Apex Legends** kills, wins and account level over 
 You need Python 3.7 or newer.
 
 ```bash
-python apex_career_count.py
+python apex_career_diary.py
 ```
 
 This opens the interactive menu. Type `help` for what each command does, and press Enter on an empty line to quit. Your data is saved in `apex_data/` next to the script.
@@ -21,7 +21,7 @@ This opens the interactive menu. Type `help` for what each command does, and pre
 To build a standalone `.exe` that keeps its data next to it:
 
 ```bash
-pyinstaller --onefile --distpath . apex_career_count.py
+pyinstaller --onefile --distpath . apex_career_diary.py
 ```
 
 ### First session

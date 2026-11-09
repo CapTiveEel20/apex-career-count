@@ -494,7 +494,7 @@ class UnreadableFileTests(DatedCase):
         os.mkdir(path)  # open() raises OSError, as for a locked file
         out = self.do("k")
         self.assertTrue(out.startswith("Error: could not read the data files"), out)
-        self.assertIn("APEX CAREER COUNT - HELP", self.do("help"))
+        self.assertIn("APEX CAREER DIARY - HELP", self.do("help"))
 
 
 if __name__ == "__main__":

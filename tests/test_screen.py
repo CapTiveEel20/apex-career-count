@@ -48,7 +48,7 @@ class DividerTests(unittest.TestCase):
         self.assertEqual(out[1], " " * 47 + "\033[93mTITLE\033[0m")
 
     def test_the_titles_are_centered_at_every_width(self):
-        for text, title in ((quick_guide(), "APEX CAREER COUNT"), (help_text(), "APEX CAREER COUNT - HELP")):
+        for text, title in ((quick_guide(), "APEX CAREER DIARY"), (help_text(), "APEX CAREER DIARY - HELP")):
             for cols in range(30, 200):
                 with self.subTest(title=title, cols=cols):
                     line = next(x for x in center_block(text, cols).split("\n") if title in x)
@@ -56,7 +56,7 @@ class DividerTests(unittest.TestCase):
                     self.assertIn(cols - len(title) - 2 * left, (0, 1))
 
     def test_the_titles_are_centered_in_plain_output(self):
-        for text, title in ((quick_guide(), "APEX CAREER COUNT"), (help_text(), "APEX CAREER COUNT - HELP")):
+        for text, title in ((quick_guide(), "APEX CAREER DIARY"), (help_text(), "APEX CAREER DIARY - HELP")):
             with self.subTest(title=title):
                 line = next(x for x in text.split("\n") if title in x)
                 self.assertIn(UI_WIDTH - len(title) - 2 * (len(line) - len(title)), (0, 1))

@@ -19,7 +19,7 @@ def quick_guide():
     equals, dashes = "=" * UI_WIDTH, "-" * UI_WIDTH
     return (
         f"\n{equals}\n"
-        f"{_title('APEX CAREER COUNT')}\n"
+        f"{_title('APEX CAREER DIARY')}\n"
         f"{equals}\n"
         f" {purple('[ ACCOUNT ]')} {cmd('account')} {k} {w} {orange('[lvl]')} {note('(Sets/Syncs totals)')}"
         f" | {cmd('accountl')} {lvl} {note('(Level)')}\n"
@@ -85,7 +85,7 @@ def help_text():
             (c("help"), "This screen"))),
     )
     equals = "=" * UI_WIDTH
-    out = ["", equals, _title("APEX CAREER COUNT - HELP"), equals]
+    out = ["", equals, _title("APEX CAREER DIARY - HELP"), equals]
     for tag, rows in sections:
         for i, (cell, what) in enumerate(rows):
             left = tag + " " * (11 - visible_len(tag)) if i == 0 else " " * 11
