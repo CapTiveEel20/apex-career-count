@@ -115,10 +115,10 @@ class Session:
         if head == "accountl":
             return accountl_cmd(self.d, parts[1:], when, self.confirm)
         quick = parse_quick(parts)
-        if quick:  # 3l (never a legend); 5k, 1w [legend] (typed legend, else the pinned one)
-            token, typed = quick
+        if quick:  # 3l (never a legend); 5k [1w] [2l] [legend] (typed legend, else the pinned one)
+            typed = quick.legend
             legend = typed if typed is not None else self.sticky.legend
-            saved = save_quick(self.d, token, when, legend, self.confirm_legend)
+            saved = save_quick(self.d, quick, when, legend, self.confirm_legend)
         else:  # anything else must be a match: <kills>, <kills> <wins> [legend] or <kills> <legend> (1 win)
             kills, wins, typed = parse_match(parts, pinned=self.sticky.legend is not None)
             legend = typed if typed is not None else self.sticky.legend

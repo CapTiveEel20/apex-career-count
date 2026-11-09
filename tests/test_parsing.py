@@ -1,6 +1,7 @@
 import unittest
 
 from apex.core.parsing import InputError, clean, parse_match, parse_quick, resolve_legend, to_int
+from apex.core.records import Quick
 
 
 class ParseMatchTests(unittest.TestCase):
@@ -32,9 +33,36 @@ class ParseMatchTests(unittest.TestCase):
 
 class ParseQuickTests(unittest.TestCase):
     def test_quick_tokens(self):
-        self.assertEqual(parse_quick(["5k"]), ("5k", None))
-        self.assertEqual(parse_quick(["1w", "wraith"]), ("1w", "wraith"))
-        self.assertEqual(parse_quick(["3l"]), ("3l", None))
+        self.assertEqual(parse_quick(["5k"]), Quick(5, 0, 0, None))
+        self.assertEqual(parse_quick(["1w", "wraith"]), Quick(0, 1, 0, "wraith"))
+        self.assertEqual(parse_quick(["3l"]), Quick(0, 0, 3, None))
+
+    def test_combined_tokens(self):
+        self.assertEqual(parse_quick(["5k", "2l"]), Quick(5, 0, 2, None))
+        self.assertEqual(parse_quick(["5k", "1w"]), Quick(5, 1, 0, None))
+        self.assertEqual(parse_quick(["5K", "1W", "2L"]), Quick(5, 1, 2, None))
+        self.assertEqual(parse_quick(["5k", "1w", "2l", "mad", "maggie"]), Quick(5, 1, 2, "mad maggie"))
+
+    def test_tokens_must_be_in_order_and_once_each(self):
+        for tokens in (["2l", "5k"], ["1w", "5k"], ["5k", "5k"], ["5k", "2l", "1w"]):
+            with self.subTest(tokens=tokens):
+                with self.assertRaises(ValueError) as caught:
+                    parse_quick(tokens)
+                self.assertNotIsInstance(caught.exception, InputError)
+
+    def test_zero_is_refused_in_any_position(self):
+        for tokens in (["0k"], ["5k", "0w"], ["5k", "1w", "0l"]):
+            with self.subTest(tokens=tokens):
+                with self.assertRaisesRegex(ValueError, "1 or higher"):
+                    parse_quick(tokens)
+
+    def test_quick_tokens_cannot_come_after_the_legend(self):
+        with self.assertRaisesRegex(ValueError, "before the legend"):
+            parse_quick(["5k", "wraith", "2l"])
+
+    def test_a_quick_token_is_not_a_legend_after_plain_numbers(self):
+        with self.assertRaisesRegex(ValueError, "before the legend"):
+            parse_match(["5", "1", "2l"])
 
     def test_a_level_takes_nothing_after_it(self):
         with self.assertRaises(ValueError) as caught:

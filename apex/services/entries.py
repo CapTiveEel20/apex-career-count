@@ -5,7 +5,7 @@ from typing import NamedTuple, Optional
 from apex.config import ABORTED, LEG_W, NO_LEGEND, SRC_LEVEL, SRC_MATCH
 from apex.core.aggregates import legend_totals
 from apex.core.levels import check_later, last_level
-from apex.core.parsing import QUICK_RE, clean, resolve_legend
+from apex.core.parsing import clean, resolve_legend
 from apex.core.records import Entry, MatchTotals, Stored, Tally
 from apex.display.messages import fmt_undo, logs_word
 from apex.storage.ledger import Ledger
@@ -33,15 +33,18 @@ def _match_totals(ledger, rec):
     return MatchTotals(rec.legend, logged + ledger.bases.get(rec.legend, Stored(0, 0, "")).tally, ledger.account)
 
 
-def record_gain(ledger, kills, wins, legend=None, source=SRC_MATCH):
+def record_gain(ledger, kills, wins, legend=None, source=SRC_MATCH, level=0):
     """Add one entry of kills/wins to the ledger and return it. source = where it came from:
-    a match, an account gain or a base gain."""
+    a match, an account gain or a base gain. level = the absolute account level reached with it
+    (0 = none), so one undo reverts both."""
     if kills < 0 or wins < 0:
         raise ValueError("Error: kills, wins and level cannot be negative.")
     stamp = ledger.stamp
     m = ledger.open_month()  # a new month starts with the old totals and levels carried over
+    if level:
+        check_later(level, stamp, m.logs)
     acc = 1 if (kills or wins) and ledger.account else 0  # 1 = its kills/wins move the account totals
-    rec = Entry(stamp, clean(legend, LEG_W), kills, wins, 0, m.next_id(), acc, source)
+    rec = Entry(stamp, clean(legend, LEG_W), kills, wins, level, m.next_id(), acc, source)
     ledger.add(rec)
     return rec
 
@@ -98,21 +101,22 @@ def undo(d):
     return fmt_undo(note, m.last_action(), entry, change, logged)
 
 
-def save_quick(d, token, when, legend, confirm_legend):
-    """Quick entries (token already checked by parse_quick): "<n>l" = n more levels, "<n>k" = n kills
-    only, "<n>w" = n wins only. Only quick kills/wins take legend (typed, or the REPL's pinned sticky
-    legend; see save_match for confirm_legend); level updates never carry one. Returns Saved."""
-    match = QUICK_RE.match(token)
-    n, kind = int(match.group(1)), match.group(2).lower()
-    if n < 1:
-        raise ValueError("Error: <n>k, <n>w and <n>l need n of 1 or higher.")
-    if kind == "k":
-        return save_match(d, n, 0, legend, when, confirm_legend)
-    if kind == "w":
-        return save_match(d, 0, n, legend, when, confirm_legend)
+def _raised_level(ledger, n):
+    """The account level n above the last one recorded; ValueError if there is none yet."""
+    m = ledger.open_month()
+    last = last_level(ledger.stamp, m.logs, m.lv)
+    if not last:
+        raise ValueError("Error: no level recorded yet; set it first with accountl <n> (e.g. accountl 700).")
+    return last + n
+
+
+def save_quick(d, quick, when, legend, confirm_legend):
+    """A quick entry (Quick, from parse_quick). Kills and/or wins, with any levels, are one entry under
+    legend (typed, or the REPL's pinned sticky legend; see save_match for confirm_legend). Levels
+    alone are a level update and never carry a legend. Returns Saved."""
     with Ledger(d, when) as ledger:
-        m = ledger.open_month()
-        last = last_level(ledger.stamp, m.logs, m.lv)
-        if not last:
-            raise ValueError("Error: no level recorded yet; set it first with accountl <n> (e.g. accountl 700).")
-        return _saved(ledger, record_level(ledger, last + n))
+        level = _raised_level(ledger, quick.levels) if quick.levels else 0  # before asking about a new legend
+        if not (quick.kills or quick.wins):
+            return _saved(ledger, record_level(ledger, level))
+        rec = record_gain(ledger, quick.kills, quick.wins, _match_legend(ledger, legend, confirm_legend), level=level)
+        return _saved(ledger, rec, _match_totals(ledger, rec))

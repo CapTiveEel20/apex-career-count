@@ -12,10 +12,11 @@ Usage: python apex_career_count.py   (opens the interactive menu; 'help' lists e
   Terminal numbers use thousands separators (15,000); kills/wins input may use them too.
   Data folder: ./apex_data next to the script.
 
-Matches take no level: everything after kills and wins is the legend, and a number there is
-rejected. A number alone is kills with 0 wins; "<kills> <legend>" (one number, then a legend) is a
-match with 1 win; with two numbers they are always kills and wins. Levels are their own entries:
-"accountl 700" = absolute level, "3l" = last recorded level + 3. SAVED lines of matches show the
+Plain-number matches take no level: everything after kills and wins is the legend, and a number
+there is rejected. A number alone is kills with 0 wins (1 win with a locked legend); "<kills> <legend>"
+(one number, then a legend) is a match with 1 win; with two numbers they are always kills and wins.
+Levels: "accountl 700" = absolute level, "3l" = last recorded level + 3, and "<n>k [<n>w] [<n>l] [legend]"
+saves kills, wins and levels as one entry (any may be omitted, in that order). SAVED lines of matches show the
 current account level.
 
 "level" is the account level reached (0 = not recorded). A new level must be <= the next level

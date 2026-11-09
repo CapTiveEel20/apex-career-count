@@ -66,7 +66,8 @@ def fmt_previous(entry, change):
     if entry and entry.level_only:
         return orange("[LEVEL UPDATE]") + f" {entry.date} | " + orange(f"LEVEL {entry.level:,}")
     if entry:
-        return cyan("[MATCH]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins)
+        level = " | " + orange(f"LEVEL {entry.level:,}") if entry.level else ""
+        return cyan("[MATCH]") + f" {entry.date} | Legend: {entry.legend} | " + kw_values(entry.kills, entry.wins) + level
     old = change.old
     was = kw_values(old.kills, old.wins) if old else None
     if change.is_account:  # a change alone = the first account save or a confirmed lowering

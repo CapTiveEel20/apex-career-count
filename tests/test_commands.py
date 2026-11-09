@@ -312,6 +312,86 @@ class DateTests(SessionCase):
         self.assertEqual(self.do("date soon"), quick_guide())
 
 
+class CombinedQuickTests(DatedCase):
+    def last(self):
+        e = self.logs()[-1]
+        return e.legend, e.kills, e.wins, e.level, e.src
+
+    def test_kills_wins_and_levels_with_a_legend(self):
+        self.do("accountl 700", "5k 1w 2l wraith")
+        self.assertEqual(self.last(), ("Wraith", 5, 1, 702, SRC_MATCH))
+
+    def test_wins_can_be_omitted(self):
+        self.do("accountl 700", "5k 2l wraith")
+        self.assertEqual(self.last(), ("Wraith", 5, 0, 702, SRC_MATCH))
+
+    def test_levels_can_be_omitted(self):
+        self.do("accountl 700", "5k 1w wraith")
+        self.assertEqual(self.last(), ("Wraith", 5, 1, 0, SRC_MATCH))
+
+    def test_kills_can_be_omitted(self):
+        self.do("accountl 700", "1w 2l wraith")
+        self.assertEqual(self.last(), ("Wraith", 0, 1, 702, SRC_MATCH))
+
+    def test_sticky_legend_with_every_combination(self):
+        self.do("base wraith 5 5", "p wraith", "accountl 700")
+        for line, want in (("5k 1w 2l", (5, 1, 702)), ("3k 1l", (3, 0, 703)), ("4k 1w", (4, 1, 0))):
+            with self.subTest(line=line):
+                self.do(line)
+                self.assertEqual(self.last(), ("Wraith", *want, SRC_MATCH))
+
+    def test_a_typed_legend_beats_the_lock_and_leaves_it_on(self):
+        self.do("base wraith 5 5", "p wraith", "accountl 700", "5k 2l octane")
+        self.assertEqual(self.last()[0], "Octane")
+        self.assertEqual(self.session.sticky.legend, "Wraith")
+
+    def test_a_typed_dash_unlocks(self):
+        self.do("base wraith 5 5", "p wraith", "accountl 700", "5k 2l -")
+        self.assertEqual(self.last()[0], "-")
+        self.assertIsNone(self.session.sticky.legend)
+
+    def test_without_a_level_nothing_is_saved_and_no_legend_is_asked(self):
+        self.assertIn("no level recorded", self.do("5k 2l wraith"))
+        self.assertFalse(self.has_month(JAN))
+        self.assertEqual(self.new_legends, [])
+
+    def test_a_declined_new_legend_saves_nothing(self):
+        self.create_legends = False
+        self.do("accountl 700")
+        self.assertIn(ABORTED, self.do("5k 2l wraith"))
+        self.assertEqual(len(self.logs()), 1)
+
+    def test_the_saved_line_shows_the_new_level(self):
+        self.assertIn("KILLS 5  WINS 1  LEVEL 702", self.do("accountl 700", "5k 1w 2l wraith"))
+
+    def test_the_next_level_counts_from_it(self):
+        self.do("accountl 700", "5k 2l wraith", "3l")
+        self.assertEqual(self.last()[3], 705)
+
+    def test_it_moves_the_account_totals(self):
+        self.do("account 100 10 700", "5k 1w 2l wraith")
+        self.assertEqual((self.account().kills, self.account().wins), (105, 11))
+
+    def test_one_undo_reverts_the_whole_line(self):
+        self.do("account 100 10 700", "5k 1w 2l wraith", "undo")
+        self.assertEqual((self.account().kills, self.account().wins), (100, 10))
+        self.assertEqual(self.do("3l").count("LEVEL 703"), 1)
+
+    def test_previous_log_shows_its_level(self):
+        out = self.do("accountl 700", "5k 2l wraith", "1k wraith", "undo")
+        self.assertIn("[MATCH]", out)
+        self.assertIn("LEVEL 702", out.split("PREVIOUS LOG:")[1])
+
+    def test_it_shows_in_both_log_tables(self):
+        self.do("accountl 700", "5k 2l wraith")
+        out = self.do("log")
+        self.assertIn("Wraith", out)
+        self.assertIn("702", out)
+
+    def test_a_lone_level_still_takes_no_legend(self):
+        self.assertIn("takes no legend", self.do("accountl 700", "3l wraith"))
+
+
 class LogTests(DatedCase):
     def rows(self):
         with patch("apex.display.colors.COLOR", True):

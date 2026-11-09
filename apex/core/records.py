@@ -61,6 +61,14 @@ class MatchTotals(NamedTuple):
     account: Optional[Stored]
 
 
+class Quick(NamedTuple):
+    """A parsed quick entry: kills, wins and levels to add (0 = omitted); legend = None if none typed."""
+    kills: int
+    wins: int
+    levels: int
+    legend: Optional[str]
+
+
 class Entry(NamedTuple):
     """One log entry (an L line). acc = 1 if its kills/wins were added to the account totals;
     src = where it came from: SRC_MATCH, SRC_ACCOUNT, SRC_BASE or SRC_LEVEL."""

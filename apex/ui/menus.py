@@ -19,11 +19,11 @@ def quick_guide():
         f" | {cmd('accountl')} {lvl} {note('(Level)')}\n"
         f" {blue('[ BASE ]')}    {cmd('base')} <name> {k} {w} {note('(Sets/Syncs legend totals)')}\n"
         f" {cyan('[ MATCH ]')}   {k} {w} <legend>"
-        f" | {red('<n>k')} {note('(e.g. ')}{red('5k')}{note(' wraith)')}"
-        f" | {green('<n>w')} | {orange('<n>l')} {note('(Add levels)')}\n"
+        f" | {red('<n>k')} {green('<n>w')} {orange('<n>l')} [legend]"
+        f" {note('(e.g. ')}{red('5k')} {orange('2l')}{note(' wraith)')}\n"
         f" {note('[ STICKY ]')}  {cmd('p')} <name> {note('(Lock)')}"
-        f" | {red('7')} {note('(')}{red('7k')}{note(', ')}{green('0w')}{note(')')}"
-        f" | {red('7')} {green('1')} {note('(')}{red('7k')}{note(', ')}{green('1w')}{note(')')}"
+        f" | {red('7')} {note('(')}{red('7k')}{note(', ')}{green('1w')}{note(')')}"
+        f" | {red('7')} {green('0')} {note('(')}{red('7k')}{note(', ')}{green('0w')}{note(')')}"
         f" | {cmd('-')} {note('(Unlock)')}\n"
         f" {note('[ TABLES ]')}  {cmd('l')} {note('(Kills)')} | {cmd('lw')} {note('(Wins)')}"
         f" | {cmd('la')} {note('(A-Z)')} | {cmd('lm')} {note('(Recent)')} |\n"
@@ -49,12 +49,13 @@ def help_text():
             (c("base"), "List the legends with a base"),
             (f"{c('base')} <name> {red('0')} {green('0')}", "Remove a legend's base"))),
         (cyan("[ MATCH ]"), (
-            (k, "Kills, 0 wins (1 win if a legend is locked)"),
+            (k, "Kills, 0 wins (1 win if legend locked)"),
             (f"{k} {w} [legend]", "Kills and wins (e.g. 7 1 wraith)"),
             (f"{k} <legend>", "Kills and 1 win (e.g. 5 wraith)"),
             (f"{red('<n>k')} [legend]", "Add n kills only"),
             (f"{green('<n>w')} [legend]", "Add n wins only"),
-            (orange("<n>l"), "Add n account levels"))),
+            (orange("<n>l"), "Add n account levels"),
+            (f"{red('<n>k')} {green('<n>w')} {orange('<n>l')} [legend]", "Any mix, in order (e.g. 5k 1w 2l wraith)"))),
         (gray("[ STICKY ]"), (
             (f"{c('p')} <name>", "Lock a base legend for later entries"),
             (c("-"), "Unlock the legend"))),

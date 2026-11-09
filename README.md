@@ -46,8 +46,10 @@ TOTALS -> [Wraith] K: 3,007 W: 151 | [ACCOUNT] K: 15,007 W: 901
 | `5 wraith` | 5 kills, **1 win (added automatically)**, Wraith |
 | `5k` / `5k wraith` | 5 kills only |
 | `1w` / `1w wraith` | 1 win only |
+| `5k 1w 2l wraith` | 5 kills, 1 win and 2 levels, Wraith |
+| `5k 2l` | 5 kills and 2 levels, no legend (or the sticky legend) |
 
-Kills always come first, and matches take no level.
+With plain numbers, kills always come first and no level is allowed. To add levels with a match, use `<n>k [<n>w] [<n>l] [legend]`: leave out any you don't need, but keep that order and put the legend last. In this form wins are never added automatically. Adding levels needs a level already recorded (`accountl`), and one `undo` reverts the whole line.
 
 Legend names can be shortened: `7 1 wra` saves Wraith if it is the only known legend starting with `wra`. If several match, type more letters. A name nobody knows asks `Unknown legend '<name>'. Create new? (y/n):`, and anything but `y` saves nothing.
 
@@ -68,14 +70,15 @@ Every match is added to the account totals and to its legend's totals automatica
 | Input | What it does |
 |---|---|
 | `accountl 700` | Sets your account level |
-| `3l` | Adds 3 levels |
+| `3l` | Adds 3 levels (takes no legend on its own) |
+| `5k 3l wraith` | Adds 3 levels together with a match |
 
 > [!NOTE]
 > `account`, `base` and `accountl` ask `Warning: New value is lower than current. Proceed? (y/n):` before lowering a value. Only `y` proceeds. A confirmed lowering logs nothing, and `undo` reverts it.
 
 ### Sticky legend
 
-The sticky legend is **off** by default. `p <name>` locks a legend already set with `base`, and matches and `<n>k` / `<n>w` without a legend then use it. While it is locked, a number alone counts as 1 win, exactly like typing the legend; use `7 0` to save a match with no win. A legend typed in an entry is used for that entry only. A typed `-` unlocks it, and `-` on a line of its own saves nothing.
+The sticky legend is **off** by default. `p <name>` locks a legend already set with `base`, and matches and `<n>k [<n>w] [<n>l]` entries without a legend then use it. While it is locked, a number alone counts as 1 win, exactly like typing the legend; use `7 0` to save a match with no win. A legend typed in an entry is used for that entry only. A typed `-` unlocks it, and `-` on a line of its own saves nothing.
 
 ```
 > p bangalore
