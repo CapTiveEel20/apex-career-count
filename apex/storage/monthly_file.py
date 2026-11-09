@@ -11,12 +11,12 @@ import os
 import sys
 from datetime import timedelta
 
-from apex.config import (ACC_TAG, AGG, DAY_FMT, FNAME, FOOTER_MARK, FRE, LEG_W, LV_KEEP_DAYS, REF_W, SRC_LEVEL, SRC_MATCH,
-                         TAG_W, YEAR_MONTHS)
+from apex.config import (ACC_TAG, AGG, DAY_FMT, DFMT, FNAME, FOOTER_MARK, FRE, LEG_W, LV_KEEP_DAYS, MONTH_FMT, REF_W,
+                         SRC_LEVEL, SRC_MATCH, TAG_W, YEAR_MONTHS)
 from apex.core.aggregates import (day_levels, ints, last_logged, legend_agg, legend_totals, log_agg, midx,
                                   monthly_bests, top_matches)
 from apex.core.levels import prune_lv
-from apex.core.parsing import title_case
+from apex.core.parsing import file_date, is_row, title_case
 from apex.core.records import Change, Entry, LevelDay, Month, Stored, TopMatch
 from apex.display.tables import SUM_HEAD, summary, vals_cells
 
@@ -106,6 +106,15 @@ def render(month, m):
     return "\n".join(out)
 
 
+def _when(cell):
+    """A date cell: date and time, or only the day (older files)."""
+    return file_date(cell, DFMT, DAY_FMT)
+
+
+def _month(cell):
+    return file_date(cell, MONTH_FMT)
+
+
 def _entry(c, n):
     """Entry of an L line split into cells c; n = entries read so far. Older files lack the later
     columns: no level = not recorded, no ID = file order, no ACC = not in the account totals, no
@@ -118,7 +127,7 @@ def _entry(c, n):
         src = c[8].strip()
     else:
         src = SRC_LEVEL if not kills and not wins and lvl else SRC_MATCH
-    return Entry(c[1].strip(), title_case(c[2]), kills, wins, lvl, lid, acc, src)
+    return Entry(_when(c[1]), title_case(c[2]), kills, wins, lvl, lid, acc, src)
 
 
 def parse(text):
@@ -134,27 +143,29 @@ def parse(text):
             elif k == "@HIST":
                 hist = ints(c[2:])
             elif k == "@PREV":
-                m.prev.append((c[1].strip(), ints(c[2:])))
+                m.prev.append((_month(c[1]), ints(c[2:])))
             elif k == "@HL":
                 m.hl[title_case(c[1])] = ints(c[2:])
             elif k == "@PL":
-                m.pl.append((c[1].strip(), title_case(c[2]), ints(c[3:])))
+                m.pl.append((_month(c[1]), title_case(c[2]), ints(c[3:])))
             elif k == "@LV":
-                m.lv.append(LevelDay(c[1].strip(), int(c[2])))
+                m.lv.append(LevelDay(_when(c[1]), int(c[2])))
             elif k == "@LL":
-                m.ll[title_case(c[1])] = c[2].strip()
+                m.ll[title_case(c[1])] = _when(c[2])
             elif k == "@TK":
-                m.top.append(TopMatch(c[1].strip(), title_case(c[2]), int(c[3]), int(c[4])))
+                m.top.append(TopMatch(_when(c[1]), title_case(c[2]), int(c[3]), int(c[4])))
             elif k == "@MB":
-                m.bests.append(TopMatch(c[1].strip(), title_case(c[2]), int(c[3]), int(c[4])))
+                m.bests.append(TopMatch(_when(c[1]), title_case(c[2]), int(c[3]), int(c[4])))
             elif k == "@BU":
                 old = None if c[4].strip() == "-" else Stored(int(c[4]), int(c[5]), c[6].strip())
                 target = c[3].strip()
-                m.changes.append(Change(int(c[1]), c[2].strip(), target if target == ACC_TAG else title_case(target), old))
+                m.changes.append(Change(int(c[1]), _when(c[2]), target if target == ACC_TAG else title_case(target), old))
             elif k == "@BAD":
                 m.damaged.append(line.split("|", 1)[1].strip())
             elif k.startswith(FOOTER_MARK):
                 break  # summary is recomputed: no need to read it
+            elif k != "@FILE" and is_row(line):  # an unknown tag: a later save must not lose it
+                m.damaged.append(line.strip())
         except (ValueError, IndexError):
             m.damaged.append(line.strip())
     return m._replace(hist=hist)
@@ -162,8 +173,11 @@ def parse(text):
 
 def read_month(path):
     """(text, Month) of one monthly file; each damaged line gets a warning on stderr."""
-    with open(path, encoding="utf-8") as f:
-        text = f.read()
+    try:
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+    except UnicodeDecodeError:
+        raise ValueError(f"Error: {os.path.basename(path)} is not valid UTF-8; save it as UTF-8 in a text editor.") from None
     m = parse(text)
     for line in m.damaged:
         print(f"Warning: damaged line skipped in {os.path.basename(path)}: {line}", file=sys.stderr)

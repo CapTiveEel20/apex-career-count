@@ -114,6 +114,24 @@ def parse_match(tokens, pinned=False):
     return to_int(tokens[0]), 1, parse_legend(tokens[1:])  # "5 +3" is still rejected as a level
 
 
+def is_row(line):
+    """True if a line of a data file holds data: it has columns or an @tag, and is not a # comment."""
+    text = line.strip()
+    return not text.startswith("#") and ("|" in text or text.startswith("@"))
+
+
+def file_date(cell, *formats):
+    """The stripped date in a cell of a data file; ValueError if it matches none of the formats."""
+    text = cell.strip()
+    for fmt in formats:
+        try:
+            datetime.strptime(text, fmt)
+            return text
+        except ValueError:
+            pass
+    raise ValueError(f"bad date: {text}")
+
+
 def parse_when(when):
     """None -> now; otherwise the session's active date, 'YYYY-MM-DD HH:MM' (checked by parse_day)."""
     return datetime.strptime(when, DFMT) if when else datetime.now()

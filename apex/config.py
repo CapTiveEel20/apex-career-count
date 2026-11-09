@@ -19,6 +19,7 @@ FOOTER_MARK = "# SUMMARY"
 NO_LEGEND = "-"
 DFMT = "%Y-%m-%d %H:%M"
 DAY_FMT = "%Y-%m-%d"
+MONTH_FMT = "%Y-%m"
 ACCOUNT_FILE = "account_stats.txt"  # global all-time account totals (never rotated)
 ACC_TAG = "@ACCOUNT"
 BASE_TAG = "@BASE"  # per-legend base: all-time totals minus the logged entries (same file)
