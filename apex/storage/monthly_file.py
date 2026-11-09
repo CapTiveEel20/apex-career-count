@@ -196,6 +196,14 @@ def older_logs(d, cur):
     return [e for month in months if month < cur for e in load(month_path(d, month)).logs]
 
 
+def carried_elsewhere(d, month, m):
+    """True if deleting month's file loses nothing: the totals its Month m carries are what the newest
+    earlier file carries forward (nothing, if there is none). False if an earlier file has gone."""
+    older = sorted(x.group(1) for x in map(FRE.match, os.listdir(d)) if x and x.group(1) < month)
+    before = load(month_path(d, older[-1])) if older else Month.empty()
+    return m.hist == before.hist + log_agg(before.logs)
+
+
 def load_current(d):
     """(month, path, Month) of the newest file (1 read); ValueError if there is none."""
     cur = current_month(d)
