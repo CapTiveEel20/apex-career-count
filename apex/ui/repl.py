@@ -120,7 +120,7 @@ class Session:
             legend = typed if typed is not None else self.sticky.legend
             saved = save_quick(self.d, token, when, legend, self.confirm_legend)
         else:  # anything else must be a match: <kills>, <kills> <wins> [legend] or <kills> <legend> (1 win)
-            kills, wins, typed = parse_match(parts)
+            kills, wins, typed = parse_match(parts, pinned=self.sticky.legend is not None)
             legend = typed if typed is not None else self.sticky.legend
             saved = save_match(self.d, kills, wins, legend, when, self.confirm_legend)
         if typed is not None:  # a typed "-" unlocks the sticky legend; any other leaves it as is

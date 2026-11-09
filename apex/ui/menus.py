@@ -49,7 +49,7 @@ def help_text():
             (c("base"), "List the legends with a base"),
             (f"{c('base')} <name> {red('0')} {green('0')}", "Remove a legend's base"))),
         (cyan("[ MATCH ]"), (
-            (k, "Kills, 0 wins (e.g. 7)"),
+            (k, "Kills, 0 wins (1 win if a legend is locked)"),
             (f"{k} {w} [legend]", "Kills and wins (e.g. 7 1 wraith)"),
             (f"{k} <legend>", "Kills and 1 win (e.g. 5 wraith)"),
             (f"{red('<n>k')} [legend]", "Add n kills only"),

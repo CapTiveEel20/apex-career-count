@@ -59,16 +59,17 @@ def parse_legend(tokens):
     return " ".join(tokens) if tokens else None
 
 
-def parse_match(tokens):
+def parse_match(tokens, pinned=False):
     """A match -> (kills, wins, legend or None). Three forms:
-    - '<kills>': one number alone is kills, 0 wins (e.g. '7');
+    - '<kills>': one number alone is kills, 0 wins (e.g. '7'), or 1 win when a legend is pinned
+      (the same as typing '<kills> <legend>');
     - '<kills> <wins> [legend]': two numbers are always kills and wins (no win added);
     - '<kills> <legend>': one number followed by the legend counts as 1 win (e.g. '5 wraith').
     InputError if it is none of them; ValueError (from parse_legend) for a level among the legend tokens."""
     if not tokens or not NUM_RE.match(tokens[0]):
         raise InputError()
     if len(tokens) == 1:
-        return to_int(tokens[0]), 0, None
+        return to_int(tokens[0]), int(pinned), None
     if NUM_RE.match(tokens[1]):
         return to_int(tokens[0]), to_int(tokens[1]), parse_legend(tokens[2:])
     return to_int(tokens[0]), 1, parse_legend(tokens[1:])  # "5 +3" is still rejected as a level
