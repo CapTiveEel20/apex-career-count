@@ -20,6 +20,7 @@ env/
 
 # Local tool settings
 .claude/settings.local.json
+CLAUDE.md
 
 # Editors / OS
 .vscode/
