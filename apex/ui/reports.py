@@ -4,14 +4,14 @@ from datetime import date, datetime, timedelta
 from operator import attrgetter
 
 from apex.config import DAY_FMT, LEG_W, NO_LEGEND, REF_W, REP, SRC_MATCH, TOP_GAMES, TOP_MONTH_BESTS
-from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, monthly_bests, top_matches
+from apex.core.aggregates import last_logged, legend_agg, legend_periods, log_agg, top_matches
 from apex.core.levels import first_level, level_name, level_short
 from apex.core.records import LevelDay
 from apex.display.colors import green, orange, paint, red
 from apex.display.messages import account_line
 from apex.display.tables import LREP_HEAD, REP_NAMES, num, rep_cells, side_by_side, vals_cells
 from apex.storage.account_file import load_acct, load_account
-from apex.storage.monthly_file import load_current, older_logs
+from apex.storage.monthly_file import load_current, older_logs, roll_over
 
 WINDOWS = (("1 WEEK", 7), ("1 MONTH", 30), ("3 MONTHS", 90), ("6 MONTHS", 180), ("1 YEAR", 365))  # days
 TOP_N = 3
@@ -107,7 +107,7 @@ def period_summary(today, logs, alltime):
     for label, days in WINDOWS:
         s = _from_day(today, days)
         out.append(f"{label:<{REF_W}} | {s:<10} | " + rep_cells(log_agg([e for e in logs if s < e.date[:10] <= end])))
-    out += [f"{'ALL-TIME':<{REF_W}} | {'-':<10} | " + rep_cells(alltime), "=" * len(head)]
+    out += [f"{'ALL LOGGED':<{REF_W}} | {'-':<10} | " + rep_cells(alltime), "=" * len(head)]
     return out
 
 
@@ -131,7 +131,7 @@ def levels_gained(logs, lv, first):
         inside = [n for k, n in points if k[:10] > s]
         gained = current - (base[-1] if base else inside[0]) if points and (base or inside) else 0
         out.append(f"{label:<{REF_W}} | {s:<10} | " + orange(num(gained, 7)))
-    out += [f"{'ALL-TIME':<{REF_W}} | {'-':<10} | " + orange(num(current - first if points else 0, 7)), "=" * width]
+    out += [f"{'ALL LOGGED':<{REF_W}} | {'-':<10} | " + orange(num(current - first if points else 0, 7)), "=" * width]
     return out
 
 
@@ -145,22 +145,34 @@ def report_text(d):
     return f"File: {path}\n\n" + account_line(load_account(d)) + "\n" + "\n".join(tables) + "\n"
 
 
+def load_this_month(d):
+    """(month, path, Month) like load_current; if the newest file is from an earlier month, that month
+    is over: it is rolled over in memory into today's month, so the views show the new month (nothing
+    is written; the first record of the month does that)."""
+    cur, path, m = load_current(d)
+    today = date.today()
+    month = today.strftime("%Y-%m")
+    if month > cur:
+        return month, path, roll_over(cur, month, today, m)
+    return cur, path, m
+
+
 def legend_text(d, sort="k", search=None):
     """'l' (by kills), 'lw' (by wins), 'la' (by name), 'lm' (by last match); 'ls <name>' = search
     (by kills). sort = a key of L_SORTS."""
-    cur, path, m = load_current(d)
+    cur, path, m = load_this_month(d)
     return (f"File: {path}\n\n" +
             legend_report(cur, m.logs, m.hl, m.pl, load_acct(d).bases, m.ll, sort, search))
 
 
 def kills_text(d):
-    cur, _, m = load_current(d)
+    cur, _, m = load_this_month(d)
     data = load_acct(d)
     return account_line(data.account, "kills") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "kills", data.bases)
 
 
 def wins_text(d):
-    cur, _, m = load_current(d)
+    cur, _, m = load_this_month(d)
     data = load_acct(d)
     return account_line(data.account, "wins") + "\n" + stat_report(cur, m.logs, m.hl, m.pl, "wins", data.bases)
 
@@ -186,17 +198,13 @@ def month_year(r):
 
 
 def games_text(d):
-    """'g': the month's best games next to the all-time monthly bests. If the newest file is from an
-    earlier month, that month is already over: it counts as closed here too, before the first record
-    of the new month rolls it over."""
-    cur, _, m = load_current(d)
-    month = date.today().strftime("%Y-%m")
-    closed = month > cur
-    games = top_matches([], [] if closed else m.logs, TOP_GAMES)
-    bests = monthly_bests(m.bests, m.logs) if closed else m.bests
-    left = game_table(f"# TOP {TOP_GAMES} GAMES THIS MONTH  ({month if closed else cur})", "DATE", 10, games,
+    """'g': the month's best games next to the all-time monthly bests (today's month: see
+    load_this_month)."""
+    month, _, m = load_this_month(d)
+    games = top_matches([], m.logs, TOP_GAMES)
+    left = game_table(f"# TOP {TOP_GAMES} GAMES THIS MONTH  ({month})", "DATE", 10, games,
                       lambda r: r.date[:10], "(no matches with kills this month)")
-    right = game_table(f"# ALL-TIME TOP {TOP_MONTH_BESTS} MONTHLY BESTS", "MONTH", 8, bests, month_year,
+    right = game_table(f"# ALL-TIME TOP {TOP_MONTH_BESTS} MONTHLY BESTS", "MONTH", 8, m.bests, month_year,
                        "(no closed months yet)")
     return "\n".join(side_by_side(left, right, gap=3)) + "\n"
 

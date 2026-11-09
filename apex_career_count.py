@@ -37,7 +37,7 @@ File format (O(1) parsing per line via a constant prefix in the first column):
   @PREV  per-month totals (last 11 calendar months, for semiannual/annual)
   @HL    all-time totals per legend (previous months)
   @PL    per-month, per-legend totals (last 11 months)
-  @LV    highest level reached per day (previous months, last year + 1 baseline)
+  @LV    last level recorded per day (previous months, last year + 1 baseline)
   @BU    base and @ACCOUNT changes of this month (id, date, target, old value), so undo reverts them
   L      one log entry (date, legend, kills, wins, level, id, acc, src = M/A/B/L origin)
   #      headers/comments (ignored by the parser)

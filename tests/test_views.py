@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from tests.helpers import SessionCase
 
-WEEK, MONTH, QUARTER, HALF, YEAR, ALL = "1 WEEK", "1 MONTH", "3 MONTHS", "6 MONTHS", "1 YEAR", "ALL-TIME"
+WEEK, MONTH, QUARTER, HALF, YEAR, ALL = "1 WEEK", "1 MONTH", "3 MONTHS", "6 MONTHS", "1 YEAR", "ALL LOGGED"
 
 
 def days_ago(n):
@@ -84,7 +84,7 @@ class LegendViewTests(SessionCase):
         self.assertEqual(self.left("ls WRA"), ["Wraith"])
 
     def test_ls_does_not_filter_the_top_3(self):
-        out = self.do("ls wra")
+        out = self.do("date today", "5 0 octane", "ls wra")
         self.assertIn("| Octane", out)
 
     def test_ls_with_no_match(self):

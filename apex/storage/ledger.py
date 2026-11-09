@@ -79,6 +79,10 @@ class Ledger:
                 raise ValueError(f"Error: month {month} is already closed (current file: {self._month}).")
             return self._m
         if self._month and month > self._month:
+            if self._m.damaged:  # their totals would be left out of every later month
+                name = os.path.basename(month_path(self.d, self._month))
+                raise ValueError(f"Error: {name} has damaged lines (@BAD); fix or delete them by hand "
+                                 f"before the first record of {month}. Nothing was saved.")
             self._m = roll_over(self._month, month, dt.date(), self._m)
             self._text = None  # a new file: nothing to put back if the commit fails
         self._month = month

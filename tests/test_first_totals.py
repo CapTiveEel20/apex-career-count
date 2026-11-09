@@ -60,7 +60,8 @@ class SecondTimeTests(SessionCase):
 
 class MenuTests(SessionCase):
     def test_log_is_listed_with_the_tables_inside_the_ui_width(self):
-        lines = [x for x in quick_guide().splitlines() if "| log" in x]
-        self.assertEqual(len(lines), 1)
-        self.assertLessEqual(len(lines[0]), 79)
-        self.assertIn("(By Period) | log", lines[0])
+        lines = quick_guide().splitlines()
+        i = next(i for i, x in enumerate(lines) if "log (Games logged)" in x)
+        self.assertTrue(lines[i - 1].endswith("(By Period) |"))
+        self.assertEqual(lines[i].strip(), "log (Games logged)")
+        self.assertLessEqual(max(len(x) for x in lines), 79)

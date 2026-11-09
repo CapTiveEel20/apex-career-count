@@ -16,7 +16,7 @@ def quick_guide():
     borders and names in the default color. Plain text when colors are off."""
     k, w, lvl = red("<k>"), green("<w>"), orange("<lvl>")
     cmd, note = steel, gray
-    equals, dashes = "=" * 79, "-" * 79
+    equals, dashes = "=" * UI_WIDTH, "-" * UI_WIDTH
     return (
         f"\n{equals}\n"
         f"{_title('APEX CAREER COUNT')}\n"
@@ -36,7 +36,8 @@ def quick_guide():
         f" {note('[ TABLES ]')}  {cmd('l')} {note('(Kills)')} | {cmd('lw')} {note('(Wins)')}"
         f" | {cmd('la')} {note('(A-Z)')} | {cmd('lm')} {note('(Recent)')} |\n"
         f"             {cmd('ls')} <name> {note('(Search)')} | {cmd('g')} {note('(Top Games)')}"
-        f" | {cmd('k')} | {cmd('w')} {note('(By Period)')} | {cmd('log')}\n"
+        f" | {cmd('k')} | {cmd('w')} {note('(By Period)')} |\n"
+        f"             {cmd('log')} {note('(Games logged)')}\n"
         f" {note('[ SYSTEM ]')}  {cmd('report')} | {cmd('undo')} | {cmd('date')} YYYY-MM-DD | {cmd('date today')}"
         f" | {cmd('help')}\n"
         f"{dashes}\n"
@@ -83,13 +84,13 @@ def help_text():
             (c("date today"), "Back to today's date"),
             (c("help"), "This screen"))),
     )
-    equals = "=" * 79
+    equals = "=" * UI_WIDTH
     out = ["", equals, _title("APEX CAREER COUNT - HELP"), equals]
     for tag, rows in sections:
         for i, (cell, what) in enumerate(rows):
             left = tag + " " * (11 - visible_len(tag)) if i == 0 else " " * 11
             out.append(f" {left} {cell}{' ' * (HELP_CMD_W - visible_len(cell))} {gray(what)}")
-    out += ["-" * 79,
+    out += ["-" * UI_WIDTH,
             " " + gray("A level can be 700, 200 2 or 200 tier 2 (Level 200 Tier 2); max 2,000."),
             " " + gray("Lowering an account, base or level value asks y/n first."),
             " " + gray("Legend names can be shortened (wra = Wraith); a new name asks y/n first.")]
